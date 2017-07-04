@@ -2,43 +2,22 @@ from __future__ import print_function
 import numpy as np
 
 ################################################################################
-def get_distance_matrix(points):
-    '''
-    Returns a matrix "distances" that is the distance between paits of points
-    
-    Input:
-    ------
-    points:
-    a 2d numpy array of N points coordinates (Nx2)
-
-    Output:
-    -------
-    a 2d numpy array of of distances between points (NxN)
-    '''
-    xh = np.repeat( [points[:,0]], points.shape[0], axis=0)
-    xv = np.repeat( [points[:,0]], points.shape[0], axis=0).T
-    dx = xh - xv
-    
-    yh = np.repeat( [points[:,1]], points.shape[0], axis=0)
-    yv = np.repeat( [points[:,1]], points.shape[0], axis=0).T
-    dy = yh - yv
-    
-    distances = np.sqrt( dx**2 + dy**2)
-
-    return distances
-
-################################################################################
-def construct_raycast_array(pose=[0,0,0],
+def construct_raycast_array(pose=[0,0],
                             length_range=30, length_steps=30, 
                             theta_range=2*np.pi, theta_res=1/1):
     '''
     This method constructs a 3d array as a discrete representiion of raycast.
     The output of this method is used in raycasting.
+
+    Note that this method could be (and will be if not available) constructed
+    in raycast_bitmap method, but this is as much time consuming as the raycast
+    itself. By providing a template and making a copy of it in raycast_bitmap
+    method, the speed would improve almost two-fold.
     
 
     Input:
     ------
-    pose: the location and heading of the sensor [x,y,heading] (default: [0,0,0])
+    pose: the location of the sensor [x,y] (default: [0,0])
 
     Parameters:
     -----------
@@ -70,7 +49,7 @@ def construct_raycast_array(pose=[0,0,0],
     Note:
     -----
     The field of view is equal to the interval:
-    [-theta_range/2 theta_range/2]+pose[2]
+    [-theta_range/2 theta_range/2]
 
     Note:
     -----
@@ -83,10 +62,9 @@ def construct_raycast_array(pose=[0,0,0],
     If the ray cast is not for simulating a robot's sensor,
     for instance if the target is feature extraction towards place categorization,
     it is more convinient (and slightly faster) to only contruct the rays_array_xy once,
-    with pose=[0,0,0] and at every new location just change it by:
+    with pose=[0,0] and at every new location just change it by:
     >>> rays_array_xy[0,:,:] += pose[0]
     >>> rays_array_xy[1,:,:] += pose[1]
-    This wouldn't work if the heading is changing in each step too.
     '''
     
     theta_steps = np.int(theta_range *theta_res *360/(2*np.pi) )
@@ -114,104 +92,13 @@ def construct_raycast_array(pose=[0,0,0],
     
     return rays_array_xy
 
-
-
-
-################################################################################
-def raycast_pointcloud(pointcloud, pose,
-                       dist_thr,
-                       length_range, length_steps, 
-                       theta_range, theta_res,
-                       rays_array_xy=None):
-    '''
-    This method takes a pointcloud and returns a raycast from the specided pose
-
-    Input:
-    ------
-    pointcloud:
-    
-    pose:
-    the location and heading of the sensor [x,y,heading]    
-
-    rays_array_xy:
-    see the output of "construct_raycast_array" for more details
-
-
-    Parameters:
-    -----------
-    dist_thr:
-    if the distance between a point in  raycast and a point from pointcloud is 
-    less than this threshold, the point is considered occupided
-
-
-    Output:
-    -------
-    t:
-    this array stores the value for the angle of each ray
-    shape=(theta_steps,) where: 
-    theta_steps = np.int(theta_range *theta_res *360/(2*np.pi) )
-
-    r:
-    distance to the first occupied cell in ray
-    shape=(theta_steps,) where: 
-    theta_steps = np.int(theta_range *theta_res *360/(2*np.pi) )
-    
-
-    Note:
-    -----
-    It's a safe practice to set the parameters once and use the same values
-    for this method and the "construct_raycast_array" method.
-
-    Note:
-    -----
-    If the "rays_array_xy" is provided, the heading is assumed to be zero,
-    and only the location is adjusted wrt "pose".
-    If the heading is not zero, don't provide the "rays_array_xy" and let
-    this method construct it inside, which will take into account the heading.
-    '''
- 
-    if rays_array_xy is None:
-        # if the rays array is not provided, construct one
-        rays_arr_xy = construct_raycast_array(pose,
-                                              length_range, length_steps, 
-                                              theta_range, theta_res)
-    else:
-        # if the rays array is provided, adjust the location        
-        rays_arr_xy = rays_array_xy.copy()
-        # moving rays_array wrt new pose
-        rays_arr_xy[0,:,:] += pose[0]
-        rays_arr_xy[1,:,:] += pose[1]
-
-
-    # finding the min distance between raycasts and pointcloud
-    x_ = rays_array_xy[0,:,:].flatten()
-    y_ = rays_array_xy[1,:,:].flatten()
-    rc = np.stack( (x_, y_), axis=1)    
-
-    dist = scipy.spatial.distance.cdist(rc, pointcloud, 'euclidean') # shape = (rc x pointcloud)
-    dist = np.min(dist, axis=1)
-    dist = dist.reshape( rays_array_xy[0,:,:].shape )
-    dist = np.where (dist< dist_thr, True, False) 
-    # TODO: find the first True value along the axis=1
-    # note: each row is a different angle, and along columns the range increases
-
-
-    # constructing the template for the output 
-    theta_steps = np.int(theta_range *theta_res *360/(2*np.pi) )
-    t = np.linspace(0, theta_range, theta_steps, endpoint=False)
-    r = length_range * np.ones(rays_arr_xy.shape[1])
-    
-    # updating the range vector  
-    # TODO: 
-
-    return r,t
-
-
 ################################################################################
 def raycast_bitmap(image, pose,
                    occupancy_thr=127,
-                   length_range=30, length_steps=30, 
-                   theta_range=2*np.pi, theta_res=1/1,
+                   length_range=30,
+                   length_steps=30, 
+                   theta_range=2*np.pi,
+                   theta_res=1/1,
                    rays_array_xy=None):
     '''
     This method takes a bitmap iamge and returns a raycast from the specided pose
@@ -223,7 +110,7 @@ def raycast_bitmap(image, pose,
     max (255), and min (0) for occupied cells.
     
     pose:
-    the location and heading of the sensor [x,y,heading]
+    the location the sensor [x,y]
     
     rays_array_xy:
     see the output of "construct_raycast_array" for more details
@@ -273,10 +160,9 @@ def raycast_bitmap(image, pose,
     this method construct it inside, which will take into account the heading.
     '''
 
-    if not(0<=pose[0]<image.shape[1]) or not(0<=pose[1]<=image.shape[0]):        
+    if not(0<=pose[0]<image.shape[1]) or not(0<=pose[1]<image.shape[0]):        
         # print ( image.shape, pose )
         raise Exception('pose is out of map')
-
  
     if rays_array_xy is None:
         # if the rays array is not provided, construct one
@@ -298,8 +184,9 @@ def raycast_bitmap(image, pose,
     y_max = (image.shape[0]-1) *np.ones(rays_arr_xy.shape[1:])
 
     rays_arr_xy[0,:,:] = np.where(rays_arr_xy[0,:,:] > x_min, rays_arr_xy[0,:,:], x_min)
-    rays_arr_xy[1,:,:] = np.where(rays_arr_xy[1,:,:] > y_min, rays_arr_xy[1,:,:], y_min)
     rays_arr_xy[0,:,:] = np.where(rays_arr_xy[0,:,:] < x_max, rays_arr_xy[0,:,:], x_max)
+
+    rays_arr_xy[1,:,:] = np.where(rays_arr_xy[1,:,:] > y_min, rays_arr_xy[1,:,:], y_min)
     rays_arr_xy[1,:,:] = np.where(rays_arr_xy[1,:,:] < y_max, rays_arr_xy[1,:,:], y_max)
 
     # finding the values in the image, corresponding to each point
@@ -309,23 +196,21 @@ def raycast_bitmap(image, pose,
     # making sure there is at least one occupied pixels per ray
     # it is set at the end, so it is equivalent to the range limit
     rays_image_val[:,-1] = 0
+    
+    # new way ~ 2.5715110302 Second for 1000 raycast
+    t_idx , r_idx = np.nonzero(rays_image_val<=occupancy_thr)
+    r_idx = np.concatenate((np.atleast_1d(r_idx[0]), r_idx[np.nonzero(np.diff(t_idx)!=0)[0]+1]))
+    # old way ~3.64616513252 Second for 1000 raycast
+    # r_idx = np.array([ np.nonzero(ray<=occupancy_thr)[0][0] for ray in rays_image_val ]).astype(float)
+    
+    # scaling (converting) range values from index to distance
+    r = r_idx * float(length_range)/length_steps
 
-    # constructing the template for the output 
     theta_steps = np.int(theta_range *theta_res *360/(2*np.pi) )
     t = np.linspace(0, theta_range, theta_steps, endpoint=False)
-    r = length_range * np.ones(rays_arr_xy.shape[1])
-    
-    # updating the range vector
-    # TODO: There should be a better way to do this!
-    r = np.array([ np.nonzero(ray<=occupancy_thr)[0][0]
-                   for ray in rays_image_val ]).astype(float)
-    
-    # print (length_range, length_steps)
-    # print (r)
-    r *= float(length_range)/length_steps
-    # occupied_idx_in_rays = np.fliplr( np.transpose(np.nonzero(rays_image_val<occupancy_thr)) )
-
     return r,t
+
+
 
 ################################################################################
 def fit_with_gaussian(data):
@@ -533,8 +418,7 @@ def features_extraction(row_col,
 
     It will become partial, for the purpose of multi-processing.
     '''
-    # row_col = [row,col] - pose = np.array([col,row,0]) 
-    pose = np.array([row_col[1],row_col[0],0])
+    pose = np.array([row_col[1],row_col[0]])
     r,t = raycast_bitmap(image,
                          pose,
                          occupancy_thr,
@@ -550,3 +434,128 @@ def features_extraction(row_col,
                                    gapThreshold)
     
     return features
+
+
+
+################################################################################
+################################################################################
+################################################################################
+
+# ################################################################################
+# def get_distance_matrix(points):
+#     '''
+#     This is useless now!
+#     even if need could use: scipy.spatial.distance.cdist instead
+    
+#     Returns a matrix "distances" that is the distance between pairs of points
+    
+#     Input:
+#     ------
+#     points:
+#     a 2d numpy array of N points coordinates (Nx2)
+
+#     Output:
+#     -------
+#     a 2d numpy array of of distances between points (NxN)
+#     '''
+#     xh = np.repeat( [points[:,0]], points.shape[0], axis=0)
+#     xv = np.repeat( [points[:,0]], points.shape[0], axis=0).T
+#     dx = xh - xv
+    
+#     yh = np.repeat( [points[:,1]], points.shape[0], axis=0)
+#     yv = np.repeat( [points[:,1]], points.shape[0], axis=0).T
+#     dy = yh - yv
+    
+#     distances = np.sqrt( dx**2 + dy**2)
+
+#     return distances
+
+# ################################################################################
+# def raycast_pointcloud(pointcloud, pose,
+#                        dist_thr,
+#                        length_range, length_steps, 
+#                        theta_range, theta_res,
+#                        rays_array_xy=None):
+#     '''
+#     This method takes a pointcloud and returns a raycast from the specided pose
+
+#     Input:
+#     ------
+#     pointcloud:
+    
+#     pose:
+#     the location of the sensor [x,y]
+
+#     rays_array_xy:
+#     see the output of "construct_raycast_array" for more details
+
+
+#     Parameters:
+#     -----------
+#     dist_thr:
+#     if the distance between a point in  raycast and a point from pointcloud is 
+#     less than this threshold, the point is considered occupided
+
+
+#     Output:
+#     -------
+#     t:
+#     this array stores the value for the angle of each ray
+#     shape=(theta_steps,) where: 
+#     theta_steps = np.int(theta_range *theta_res *360/(2*np.pi) )
+
+#     r:
+#     distance to the first occupied cell in ray
+#     shape=(theta_steps,) where: 
+#     theta_steps = np.int(theta_range *theta_res *360/(2*np.pi) )
+    
+
+#     Note:
+#     -----
+#     It's a safe practice to set the parameters once and use the same values
+#     for this method and the "construct_raycast_array" method.
+
+#     Note:
+#     -----
+#     If the "rays_array_xy" is provided, the heading is assumed to be zero,
+#     and only the location is adjusted wrt "pose".
+#     If the heading is not zero, don't provide the "rays_array_xy" and let
+#     this method construct it inside, which will take into account the heading.
+#     '''
+ 
+#     if rays_array_xy is None:
+#         # if the rays array is not provided, construct one
+#         rays_arr_xy = construct_raycast_array(pose,
+#                                               length_range, length_steps, 
+#                                               theta_range, theta_res)
+#     else:
+#         # if the rays array is provided, adjust the location        
+#         rays_arr_xy = rays_array_xy.copy()
+#         # moving rays_array wrt new pose
+#         rays_arr_xy[0,:,:] += pose[0]
+#         rays_arr_xy[1,:,:] += pose[1]
+
+
+#     # finding the min distance between raycasts and pointcloud
+#     x_ = rays_array_xy[0,:,:].flatten()
+#     y_ = rays_array_xy[1,:,:].flatten()
+#     rc = np.stack( (x_, y_), axis=1)    
+
+#     dist = scipy.spatial.distance.cdist(rc, pointcloud, 'euclidean') # shape = (rc x pointcloud)
+#     dist = np.min(dist, axis=1)
+#     dist = dist.reshape( rays_array_xy[0,:,:].shape )
+#     dist = np.where (dist< dist_thr, True, False) 
+#     # TODO: find the first True value along the axis=1
+#     # note: each row is a different angle, and along columns the range increases
+
+
+#     # constructing the template for the output 
+#     theta_steps = np.int(theta_range *theta_res *360/(2*np.pi) )
+#     t = np.linspace(0, theta_range, theta_steps, endpoint=False)
+#     r = length_range * np.ones(rays_arr_xy.shape[1])
+    
+#     # updating the range vector  
+#     # TODO: 
+
+#     return r,t
+

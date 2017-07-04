@@ -18,7 +18,6 @@ Mozos, O. Martınez, Cyrill Stachniss, and Wolfram Burgard. "Supervised learning
 	* opencv >= 2
 	* matplotlib >= 1.4.3
 
-
 ## Usage:
 In the [runMe.py](), set the following parameters:
 ```
@@ -35,7 +34,7 @@ $ python runMe.py filename
 
 
 ## License:
-Distributed with a BSD license; see LICENSE.
+Distributed with a GNU license; see LICENSE.
 ```
 Copyright (C) Saeed Gholami Shahbandi <saeed.gh.sh@gmail.com>
 ```
