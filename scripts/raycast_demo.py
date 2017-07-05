@@ -1,4 +1,19 @@
 '''
+Copyright (C) Saeed Gholami Shahbandi. All rights reserved.
+Author: Saeed Gholami Shahbandi (saeed.gh.sh@gmail.com)
+
+This file is part of Arrangement Library.
+The of Arrangement Library is free software: you can redistribute it and/or
+modify it under the terms of the GNU Lesser General Public License as published
+by the Free Software Foundation, either version 3 of the License,
+or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License along
+with this program. If not, see <http://www.gnu.org/licenses/>
 '''
 from __future__ import print_function
 import sys
@@ -6,35 +21,12 @@ sys.path.append( u'../' )
 
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 import place_categorization.place_categorization as plcat
-
-
+import place_categorization.plotting as pcplt
 ################################################################################
 ################################################################################
-################################################################################
-
-# ################################################################################
-# def plot_point_sets (src, dst=None):
-#     ''''''
-#     fig, axis = plt.subplots(1,1, figsize=(20,12))
-#     axis..plot(src[:,0] ,  src[:,1], 'b.')
-#     if dst is not None: axis.plot(dst[:,0] ,  dst[:,1], 'r.')
-#     axis.axis('equal')
-#     plt.show()     # fig.show() # using fig.show() won't block the code!
-
-
-def plot_ray_cast(image, pose, r,t):
-    ''''''
-    fig, axis = plt.subplots(1,1, figsize=(10,10))
-    axis.imshow( image, cmap = 'gray', interpolation='nearest', origin='lower')
-    axis.plot(pose[0], pose[1], 'r*')
-    x = pose[0] + r*np.cos(t)
-    y = pose[1] + r*np.sin(t)
-    axis.plot(x, y, 'b.-')
-    plt.show()
-
 ################################################################################
 def get_random_pose (image, occupancy_thr):
     ''''''
@@ -44,6 +36,7 @@ def get_random_pose (image, occupancy_thr):
         if image[int(pose[1]), int(pose[0])] > occupancy_thr:
             return pose
 
+
 ################################################################################
 ################################################################################
 ################################################################################
@@ -52,7 +45,7 @@ if __name__ == '__main__':
     usage:
     python raycast_demo.py --filename 'filename.ext'
     '''
-    
+  
     args = sys.argv
     # fetching parameters from input arguments
     # parameters are marked with double dash,
@@ -101,7 +94,7 @@ if __name__ == '__main__':
     pose_ = get_random_pose (image, raycast_config['occupancy_thr'])
     
     ### raycast
-    r,t = plcat.raycast_bitmap(image, pose_,
+    r,t = plcat.raycast_bitmap(pose_, image,
                                raycast_config['occupancy_thr'],
                                raycast_config['length_range'],
                                raycast_config['length_steps'], 
@@ -110,4 +103,4 @@ if __name__ == '__main__':
                                rays_array_xy=raxy)
 
     ### plot the result
-    plot_ray_cast(image, pose_, r,t)
+    pcplt.plot_ray_cast(image, pose_, r,t)

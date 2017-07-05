@@ -1,5 +1,24 @@
+'''
+Copyright (C) Saeed Gholami Shahbandi. All rights reserved.
+Author: Saeed Gholami Shahbandi (saeed.gh.sh@gmail.com)
+
+This file is part of Arrangement Library.
+The of Arrangement Library is free software: you can redistribute it and/or
+modify it under the terms of the GNU Lesser General Public License as published
+by the Free Software Foundation, either version 3 of the License,
+or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License along
+with this program. If not, see <http://www.gnu.org/licenses/>
+'''
 from __future__ import print_function
 import numpy as np
+
+import utilities
 
 ################################################################################
 def construct_raycast_array(pose=[0,0],
@@ -93,7 +112,126 @@ def construct_raycast_array(pose=[0,0],
     return rays_array_xy
 
 ################################################################################
-def raycast_bitmap(image, pose,
+def raycast_bitmap_batch(open_cells, image,
+                         occupancy_thr=127,
+                         length_range=30,
+                         length_steps=30, 
+                         theta_range=2*np.pi,
+                         theta_res=1/1,
+                         rays_array_xy=None):
+    '''
+    This method takes a bitmap iamge and returns a raycast from the specided pose
+
+    Input:
+    ------
+    image:
+    An occupancy grid map (bitmap image), where the value of open cells is
+    max (255), and min (0) for occupied cells.
+    
+    open_cells
+    
+    rays_array_xy:
+    see the output of "construct_raycast_array" for more details
+
+    Parameters:
+    -----------
+    occupancy_thr:
+    a pixel with value less-equal to this threshold is considered as occupied (default: 127)
+
+    length_range:
+    the length of a ray in pixel (default: 30)
+
+    length_steps:
+    number of steps in every ray (default: same as length_range)
+
+    theta_range:
+    the field of view of scanner in radian (default: 2pi)
+
+    theta_res:
+    resolution of the the angle [step/deg] (default: 1))
+
+
+    Output:
+    -------
+    t:
+    this array stores the value for the angle of each ray
+    shape=(theta_steps,) where: 
+    theta_steps = np.int(theta_range *theta_res *360/(2*np.pi) )
+    
+
+    Note:
+    -----
+    It's a safe practice to set the parameters once and use the same values
+    for this method and the "construct_raycast_array" method.
+
+    Note:
+    -----
+    If the "rays_array_xy" is provided, the heading is assumed to be zero,
+    and only the location is adjusted wrt "pose".
+    If the heading is not zero, don't provide the "rays_array_xy" and let
+    this method construct it inside, which will take into account the heading.
+    '''
+
+    all_inside = True
+    all_inside = all_inside & np.all(0<=open_cells[:,0]) & np.all(open_cells[:,0]<image.shape[1])
+    all_inside = all_inside & np.all(0<=open_cells[:,1]) & np.all(open_cells[:,1]<image.shape[0])
+    if not all_inside:
+        raise Exception('open cells out of image!!!')
+ 
+    # stack the ray array 
+    rays_arr_xy = np.stack([rays_array_xy for _ in range(open_cells.shape[0])], axis=0)
+
+    # adjust the location
+    rays_arr_xy[:,0,:,:] += np.swapaxes( np.atleast_3d(open_cells[:,0]),axis1=0, axis2=1)
+    rays_arr_xy[:,1,:,:] += np.swapaxes( np.atleast_3d(open_cells[:,1]),axis1=0, axis2=1)
+
+    # fixing the indices wrt image size
+    # making sure all points in the rays_arr_xy are inside the image
+    x_min = np.zeros(rays_arr_xy.shape[2:4])
+    y_min = np.zeros(rays_arr_xy.shape[2:4])
+    x_max = (image.shape[1]-1) *np.ones(rays_arr_xy.shape[2:4])
+    y_max = (image.shape[0]-1) *np.ones(rays_arr_xy.shape[2:4])
+
+    rays_arr_xy[:,0,:,:] = np.where(rays_arr_xy[:,0,:,:] > x_min, rays_arr_xy[:,0,:,:], x_min)
+    rays_arr_xy[:,0,:,:] = np.where(rays_arr_xy[:,0,:,:] < x_max, rays_arr_xy[:,0,:,:], x_max)
+
+    rays_arr_xy[:,1,:,:] = np.where(rays_arr_xy[:,1,:,:] > y_min, rays_arr_xy[:,1,:,:], y_min)
+    rays_arr_xy[:,1,:,:] = np.where(rays_arr_xy[:,1,:,:] < y_max, rays_arr_xy[:,1,:,:], y_max)
+
+    # finding the values in the image, corresponding to each point
+    rays_image_val = image[rays_arr_xy[:,1,:,:].astype(int),
+                           rays_arr_xy[:,0,:,:].astype(int)]
+
+    # making sure there is at least one occupied pixels per ray
+    # it is set at the end, so it is equivalent to the range limit
+    rays_image_val[:,:,-1] = 0
+
+    # return rays_image_val
+
+
+    theta_steps = np.int(theta_range *theta_res *360/(2*np.pi) )
+    t = np.linspace(0, theta_range, theta_steps, endpoint=False)
+
+
+    # nonzero only returns the indices to entries that satisfy the condition
+    # this means t_idx is not uniform, different angles (rays) have different nubmer of nonzeros
+    # this is why reshape won't work!
+    # instead the change from one ray to the next is detected by the change of angle index (t_idx)
+    # i.e. np.nonzero(np.diff(t_idx)!=0)[0]+1
+    # since this ignores the first ray (no change of index), it is added manually at first: r_idx[0]
+    cell_idx, t_idx , r_idx = np.nonzero(rays_image_val<=occupancy_thr)
+    # r_idx = r_idx.reshape(open_cells.shape[0], theta_steps, length_steps)[:,:,0]
+    r_idx = np.concatenate((np.atleast_1d(r_idx[0]), r_idx[np.nonzero(np.diff(t_idx)!=0)[0]+1]))
+    r_idx = r_idx.reshape(open_cells.shape[0], theta_steps)
+
+    # scaling (converting) range values from index to distance
+    R = r_idx * float(length_range)/length_steps
+
+    return R,t
+
+
+################################################################################
+def raycast_bitmap(pose, image,
                    occupancy_thr=127,
                    length_range=30,
                    length_steps=30, 
@@ -196,8 +334,18 @@ def raycast_bitmap(image, pose,
     # making sure there is at least one occupied pixels per ray
     # it is set at the end, so it is equivalent to the range limit
     rays_image_val[:,-1] = 0
+
+
+    theta_steps = np.int(theta_range *theta_res *360/(2*np.pi) )
+    t = np.linspace(0, theta_range, theta_steps, endpoint=False)
     
     # new way ~ 2.5715110302 Second for 1000 raycast
+    # nonzero only returns the indices to entries that satisfy the condition
+    # this means t_idx is not uniform, different angles (rays) have different nubmer of nonzeros
+    # this is why reshape won't work!
+    # instead the change from one ray to the next is detected by the change of angle index (t_idx)
+    # i.e. np.nonzero(np.diff(t_idx)!=0)[0]+1
+    # since this ignores the first ray (no change of index), it is added manually at first: r_idx[0]
     t_idx , r_idx = np.nonzero(rays_image_val<=occupancy_thr)
     r_idx = np.concatenate((np.atleast_1d(r_idx[0]), r_idx[np.nonzero(np.diff(t_idx)!=0)[0]+1]))
     # old way ~3.64616513252 Second for 1000 raycast
@@ -206,11 +354,7 @@ def raycast_bitmap(image, pose,
     # scaling (converting) range values from index to distance
     r = r_idx * float(length_range)/length_steps
 
-    theta_steps = np.int(theta_range *theta_res *360/(2*np.pi) )
-    t = np.linspace(0, theta_range, theta_steps, endpoint=False)
     return r,t
-
-
 
 ################################################################################
 def fit_with_gaussian(data):
@@ -239,8 +383,8 @@ def fit_with_gaussian(data):
     # Translate the distribution to center its CoG at origin of the 
     zero_mean_data = np.float64(data.copy())
     for i in range(Dimension):
-	zero_mean_data[:,i] -= mean[i]
-            
+        zero_mean_data[:,i] -= mean[i]
+        
     # Compute the singular value decomposition
     U,S,V = np.linalg.svd(zero_mean_data)
         
@@ -249,6 +393,206 @@ def fit_with_gaussian(data):
             
     return mean, stddev, rot
 
+################################################################################
+def feature_set_A1(R,t, gap_t, rel_gap_t):
+    '''
+    Statistical Feature Set
+    -----------------------
+    Feature set A1 from "Semantic labeling of places with mobile robots"
+    For details type `feature_set_by_oscar_description()`
+
+    Inputs
+    ------
+    t: 1darray (1xn)
+    n is the is the number of rays in each raycast, or the number of angles
+    
+    R: 2darray (mxn)
+    m is the number of open_cells and hence the number of raycast vectors
+    n is the number of rays in each raycast (i.e. the length of theta vector)
+
+    Paramters
+    ---------
+    gap_t: list
+    gap threshold (if di-dj > gap_t[k])
+   
+    rel_gap_t: scaler (0,1)
+    relateive gap threshold (if di/dj > gap_t[k])
+    
+    Output
+    ------
+    F: 2darray (mxl)
+    m is the number of open_cells and hence the number of raycast vectors
+    l is the length of fature vector (it depends on feature set)
+
+    '''
+
+    assert R.ndim == 2
+
+    diff = np.abs( np.diff(R, axis=1) )
+    # Average Difference Between the Length of Two Consecutive Beams
+    A11 = np.atleast_2d( diff.mean(axis=1) ).T
+    # Standard Deviation of the Difference Between the Length of Two Consecutive Beams
+    A12 = np.atleast_2d( diff.std(axis=1) ).T
+
+    # since we use raycast and not real laser beams, the max-range is already included
+    # # Average Difference Between the Length of Consecutive Beams Considering Max-Range
+    # A13 =
+    # # Standard Deviation of the Difference Between the Length of Two Consecutive Beams Considering Max-Range
+    # A14 =
+
+    # The Average Beam Length
+    A15 = np.atleast_2d( R.mean(axis=1) ).T
+    # The Standard Deviation of the Beam Length
+    A16 = np.atleast_2d( R.std(axis=1) ).T
+
+    # Number of Gaps
+    A17 = np.concatenate( [ np.atleast_2d( np.count_nonzero(diff>gt, axis=1) ).T
+                            for gt in gap_t ],
+                          axis=1 )
+
+    # For two reason I won't include this, 1) too much work, 2) I don't the point of it anyway!
+    # # Number of Beams Lying on Lines Extracted from the Range
+    # A18 = method from \cite{sack2004comparison}
+
+    # for door frame detection
+    # filt = np.vstack( np.hannig(window_size), R.shape[0])
+    # R_smooth = np.apply_along_axis(lambda m: np.convolve(m, filt, mode='full'), axis=1, arr=R)
+    # Global_Minima = 
+    # # Euclidean Distance Between the Two Points Corresponding to Two Consecutive Global Minima
+    # A19 =
+    # # The Angular Distance Between the Two Points Corresponding to Two Consecutive Global Minima
+    # A110 =
+
+    rel = R / np.roll(R, 1, axis=1)
+    # Average of the Relation Between Two Consecutive Beams
+    A111 = np.atleast_2d( rel.mean(axis=1) ).T
+    # Standard Deviation of the Relation Between the Length of Two Consecutive Beams
+    A112 = np.atleast_2d( rel.std(axis=1) ).T
+
+    nrm = R / np.atleast_2d( R.max(axis=1) ).T
+    # Average of Normalized Beam Length
+    A113 = np.atleast_2d( nrm.mean(axis=1) ).T
+    # Standard Deviation of Normalized Beam Length
+    A114 = np.atleast_2d( nrm.std(axis=1) ).T
+
+    # Number of Relative Gaps
+    A115 = np.atleast_2d( np.count_nonzero( rel > rel_gat_t, axis=1) ).T
+    # todo: since it\'s relative, shouldn\'t the condition be ((1/rel_gap_t)< rel <rel_gap_t)?
+
+    # Kurtosis
+    A116 = np.atleast_2d( (np.sum((R-A15)**4,axis=1) / (R.shape[1]* A16**4))-3 ).T
+
+    F = np.concatenate( (A11,A12, A15,A16, A17, A111,A112, A113,A114, A115, A116),
+                        axis=1)
+
+
+    return F
+
+################################################################################
+def feature_set_A2(R,t):
+    '''
+    Shape Feature Set
+    -----------------
+    Feature set A2 from "Semantic labeling of places with mobile robots"
+    For details type `feature_set_by_oscar_description()`
+
+    Inputs
+    ------
+    t: 1darray (1xn)
+    n is the is the number of rays in each raycast, or the number of angles
+    
+    R: 2darray (mxn)
+    m is the number of open_cells and hence the number of raycast vectors
+    n is the number of rays in each raycast (i.e. the length of theta vector)
+   
+
+    Output
+    ------
+    F: 2darray (mxl)
+    m is the number of open_cells and hence the number of raycast vectors
+    l is the length of fature vector (it depends on feature set)
+    '''
+
+    # # Area of P(z)
+    # A21 = 
+
+    # # Perimeter of P(z)
+    # A22 = 
+
+    # # Mean Distance Between the Centroid and the Shape Boundary
+    # A23 =
+
+    # # Standard Deviation of the Distances Between the Centroid and the Shape Boundary
+    # A24 = 
+
+    # # Invariant Descriptors Based on the Fourier Transformation
+    # A25 = 
+
+    # # Major Axis Ma of the Ellipse that Approximates P(z)
+    # A26 = 
+
+    # # Minor Axis Mi of the Ellipse that Approximates P(z)
+    # A27 = 
+
+    # # Invariant Moments of P(z)
+    # A28 = 
+
+    # # Normalized Feature of Compactness of P(z)
+    # A29 = 
+
+    # # Normalized Feature of Eccentricity of P(z)
+    # A210 = 
+
+    # # Form Factor of P(z)
+    # A211 = 
+
+    # # Circularity of P(z)
+    # A212 = 
+
+    # # Normalized Circularity of P(z)
+    # A213 = 
+
+    # # Average Normalized Distance Between the Centroid and the Shape Boundary
+    # A214 = 
+    
+    # # Standard Deviation of the Normalized Distances Between the Centroid and the Shape Boundary
+    # A215 = 
+
+    # F = np.concatenate( (),
+    #                     axis=1)
+
+    return F
+
+################################################################################
+def feature_set_mix(R,t):
+    '''
+    A feature set from "Semantic labeling of places with mobile robots" (See note below)
+
+    Inputs
+    ------
+    t: 1darray (1xn)
+    n is the is the number of rays in each raycast, or the number of angles
+    
+    R: 2darray (mxn)
+    m is the number of open_cells and hence the number of raycast vectors
+    n is the number of rays in each raycast (i.e. the length of theta vector)
+   
+    Output
+    ------
+    F: 2darray (mxl)
+    m is the number of open_cells and hence the number of raycast vectors
+    l is the length of fature vector (it depends on feature set)
+
+    Note
+    ----
+    {:s}
+    '''#.format(feature_set_by_oscar(print_out=False))
+
+    A1 = feature_set_A1(R)
+    A2 = feature_set_A2(R)
+    F = np.concatenate( (A1,A2), axis=1 )
+
+    return F
 
 ################################################################################
 def raycast_to_features(t,r,
@@ -294,8 +638,6 @@ def raycast_to_features(t,r,
     [2] R.M. Haralick and L.G. Shapiro. Computer and Robot Vision. Addison-Wesley Publishing Inc., 1992.
     [3] S. Loncaric. A survey of shape analysis techniques. Pattern Recognition,31(8), 1998.
     [4] R.C. Gonzalez and P. Wintz. Digital Image Processing. Addison-Wesley Publishing Inc., 1987.
-
-
     '''    
     f = [] # the problem is the dynamic number of gaps np.zeros(17)
     # [ r_mean_norm,
@@ -396,7 +738,6 @@ def raycast_to_features(t,r,
 
     return np.array(f)
 
-
 ################################################################################
 def features_extraction(row_col,
                         image,
@@ -419,8 +760,8 @@ def features_extraction(row_col,
     It will become partial, for the purpose of multi-processing.
     '''
     pose = np.array([row_col[1],row_col[0]])
-    r,t = raycast_bitmap(image,
-                         pose,
+    r,t = raycast_bitmap(pose,
+                         image,
                          occupancy_thr,
                          length_range,
                          length_steps, 
@@ -559,3 +900,50 @@ def features_extraction(row_col,
 
 #     return r,t
 
+################################################################################
+def feature_set_by_oscar_description(print_out=True):
+    '''
+    The set of features are implemented according to:
+    Oscar Martinez Mozos "Semantic labeling of places with mobile robots", 2010, Springer Berlin Heidelberg
+
+    The followings are copied from the abovementioned document:
+
+    A.1 Simple Features Extracted from Laser Beams
+    A.1.1 Average Difference Between the Length of Two Consecutive Beams
+    A.1.2 Standard Deviation of the Difference Between the Length of Two Consecutive Beams
+    A.1.3 Average Difference Between the Length of Consecutive Beams Considering Max-Range
+    A.1.4 Standard Deviation of the Difference Between the Length of Two Consecutive Beams Considering Max-Range
+    A.1.5 The Average Beam Length
+    A.1.6 The Standard Deviation of the Beam Length
+    A.1.7 Number of Gaps
+    A.1.8 Number of Beams Lying on Lines Extracted from the Range
+    A.1.9 Euclidean Distance Between the Two Points Corresponding to Two Consecutive Global Minima
+    A.1.10 The Angular Distance Between the Two Points Corresponding to Two Consecutive Global Minima
+    A.1.11 Average of the Relation Between Two Consecutive Beams
+    A.1.12 Standard Deviation of the Relation Between the Length of Two Consecutive Beams
+    A.1.13 Average of Normalized Beam Length
+    A.1.14 Standard Deviation of Normalized Beam Length
+    A.1.15 Number of Relative Gaps
+    A.1.16 Kurtosis
+
+    A.2 Simple Features Extracted from a Polygon Approximation
+    A.2.1 Area of P(z)
+    A.2.2 Perimeter of P(z)
+    A.2.3 Mean Distance Between the Centroid and the Shape Boundary
+    A.2.4 Standard Deviation of the Distances Between the Centroid and the Shape Boundary
+    A.2.5 Invariant Descriptors Based on the Fourier Transformation
+    A.2.6 Major Axis Ma of the Ellipse that Approximates P(z)
+    A.2.7 Minor Axis Mi of the Ellipse that Approximates P(z)
+    A.2.8 Invariant Moments of P(z)
+    A.2.9 Normalized Feature of Compactness of P(z)
+    A.2.10 Normalized Feature of Eccentricity of P(z)
+    A.2.11 Form Factor of P(z)
+    A.2.12 Circularity of P(z)
+    A.2.13 Normalized Circularity of P(z)
+    A.2.14 Average Normalized Distance Between the Centroid and the Shape Boundary
+    A.2.15 Standard Deviation of the Normalized Distances Between the Centroid and the Shape Boundary
+    '''
+    if print_out:
+        print (feature_set_by_oscar.__doc__)
+    else:
+        return feature_set_by_oscar.__doc__
