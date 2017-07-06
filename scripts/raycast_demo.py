@@ -43,7 +43,7 @@ def get_random_pose (image, occupancy_thr):
 if __name__ == '__main__':
     '''
     usage:
-    python raycast_demo.py --filename 'filename.ext'
+    python raycast_demo.py --image_name 'filename.ext'
     '''
   
     args = sys.argv
@@ -61,7 +61,7 @@ if __name__ == '__main__':
     
 
     ### load image
-    image = np.flipud( cv2.imread( file_name, cv2.IMREAD_GRAYSCALE) )
+    image = np.flipud( cv2.imread( image_name, cv2.IMREAD_GRAYSCALE) )
 
     ### raycasting config
     raycast_config = {

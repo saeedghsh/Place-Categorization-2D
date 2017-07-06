@@ -58,7 +58,7 @@ def lock_n_load(file_name, k_size=3):
 ################################################################################
 if __name__ == '__main__':
     '''
-    python raycast_map.py --file_name ../map_sample/test.png
+    python raycast_map.py --image_name ../map_sample/test.png
     '''
     args = sys.argv
 
@@ -90,16 +90,8 @@ if __name__ == '__main__':
     }
 
     ### loading and processing image
-    # file_name = '../map_sample/test.png'
-    image = lock_n_load(file_name, k_size=3)
-    # image = np.flipud( cv2.imread( file_name, cv2.IMREAD_GRAYSCALE) )
-
-
-    # import matplotlib.pyplot as plt
-    # plt.imshow(image)
-    # plt.show()
-    # raise('oops')
-
+    # image_name = '../map_sample/test.png'
+    image = lock_n_load(image_name, k_size=3)
 
     ### constructing the rays_array_xy template
     raxy = plcat.construct_raycast_array( np.array([0,0]),
@@ -126,19 +118,16 @@ if __name__ == '__main__':
     tic = time.time()
     with ctx.closing(mp.Pool(processes=multiprocessing)) as p:
         r_t_s = p.map( raycast_bitmap_par, open_cells)
-    print ('time to raycast "{:s}" with {:d} opencells: {:f}'.format(file_name,open_cells.shape[0],time.time()-tic))
+    print ('time to raycast "{:s}" with {:d} opencells: {:f}'.format(image_name,open_cells.shape[0],time.time()-tic))
 
 
     ### saving indices to open_cells, their corresponding raycasts, and raycast config to file
     raycasts = {
         'config': raycast_config,
         'open_cells': open_cells,
-        'theta_vecs': np.array([rt[1] for rt in r_t_s]), # note that for all (i,j) theta_vecs[i,:]==theta_vecs[j,:]
+        'theta_vecs': r_t_s[0][1], # since all theta vectors are the same, save onle one of them
         'range_vecs': np.array([rt[0] for rt in r_t_s])
     }
 
-    output_name = '.'.join( file_name.split('.')[:-1] ) + '_raycasts.npy'
+    output_name = '.'.join( image_name.split('.')[:-1] ) + '_raycasts.npy'
     np.save(output_name, raycasts)
-
-    # ### to load
-    # raycasts = np.atleast_1d( np.load('filename') )[0]

@@ -29,7 +29,14 @@ import time
 import cv2
 import numpy as np
 
+import multiprocessing as mp
+import contextlib as ctx
+from functools import partial
+
 import place_categorization.place_categorization as plcat
+import place_categorization.plotting as pcplt
+import place_categorization.utilities as utls
+reload(utls)
 
 ################################################################################
 def lock_n_load(file_name, k_size=3):
@@ -48,13 +55,12 @@ def lock_n_load(file_name, k_size=3):
 
     return image
 
-
 ################################################################################
 ################################################################################
 ################################################################################
-if 1:#__name__ == '__main__':
+if __name__ == '__main__':
     '''
-    python raycast_map_batch.py --image_name ../map_sample/test.png
+    python raycast_map.py --image_name ../map_sample/test_.png
     '''
     args = sys.argv
 
@@ -70,55 +76,46 @@ if 1:#__name__ == '__main__':
         except:
             break   
 
-
-    ### raycasting parametere
-    raycast_config = {
-        'mpp': 0.02, # meter per pixel
-        'range_meter': 4, # meter
-        'length_range': 200, #range_meter_ / mpp_
-        'length_steps': 200, #int(length_range_)
-        'theta_range': 2*np.pi,
-        'theta_res': 1/1, # step/degree
-        'occupancy_thr': 220,
-    }
+    # ### 
+    # multiprocessing = 4
 
     ### loading and processing image
+    # image_name = '../map_sample/kpt4a_full.png'
+    # image_name = '../map_sample/test_.png'
     image = lock_n_load(image_name, k_size=3)
+    raycasts_name = '.'.join( image_name.split('.')[:-1] ) + '_raycasts.npy'
+    raycasts = np.atleast_1d( np.load(raycasts_name) )[0]
 
-    ### constructing the rays_array_xy template
-    raxy = plcat.construct_raycast_array( np.array([0,0]),
-                                          raycast_config['length_range'],
-                                          raycast_config['length_steps'],
-                                          raycast_config['theta_range'],
-                                          raycast_config['theta_res'] )
-    
+    ### raycasting parametere
+    raycast_config = raycasts['config']
+    open_cells = raycasts['open_cells']
+    R = raycasts['range_vecs']
+    t = raycasts['theta_vecs']
 
-    ### finding free space (unoccupied pixels) from which to raycast
-    open_cells = np.transpose(np.nonzero(image>raycast_config['occupancy_thr'])) # [(row, col),..]
-    open_cells = np.roll(open_cells, 1, axis=1) # [(col, row),..]
+    # idx = np.random.randint(open_cells.shape[0])
+    # pcplt.plot_ray_cast(image, open_cells[idx,:], R[idx,:], T[idx,:])       
 
-    ### Raycasting for all point at once
+    print('\t **************** TODO ****************')
+    print('\t what is the metric of R?')
+    print('\t what is the threshold for relative gap in A1?')
+    print('\t what is the EFD_coefficient_degree in A2?')
+    print('\t what to do with complext values in A2?')
+    print('\t **************************************')
+
     tic = time.time()
-    R,t = plcat.raycast_bitmap_batch(open_cells, image,
-                                     occupancy_thr=raycast_config['occupancy_thr'],
-                                     length_range=raycast_config['length_range'],
-                                     length_steps=raycast_config['length_steps'], 
-                                     theta_range=raycast_config['theta_range'],
-                                     theta_res=raycast_config['theta_res'],
-                                     rays_array_xy=raxy)
-    print ('time to raycast "{:s}" with {:d} opencells: {:f}'.format(image_name,open_cells.shape[0],time.time()-tic))
-    
-    ### saving indices to open_cells, their corresponding raycasts, and raycast config to file
-    raycasts = {
-        'config': raycast_config,
+    # if memory is short, do one by one. But the function expects 2d array for R, so it goes like:
+    # F = plcat.feature_set_A1(np.atleast_2d(R[0,:]), t, [50, 100, 150], 0.5)
+    FA1 = plcat.feature_set_A1(R, t, [50, 100, 150], 0.5)
+    print ('time to extract features (A1) for {:d} opencells: {:f}'.format(open_cells.shape[0],time.time()-tic))
+
+    tic = time.time()
+    FA2 = plcat.feature_set_A2(R, t, EFD_degree=10)
+    print ('time to extract features (A2) for {:d} opencells: {:f}'.format(open_cells.shape[0],time.time()-tic))
+
+    features = {
         'open_cells': open_cells,
-        'theta_vecs': t,
-        'range_vecs': R
+        'features': np.concatenate( (FA1, FA2), axis=1)
     }
 
-    output_name = '.'.join( image_name.split('.')[:-1] ) + '_raycasts.npy'
-    np.save(output_name, raycasts)
-
-    # ### to load
-    # raycasts = np.atleast_1d( np.load('filename') )[0]
-
+    output_name = '.'.join( image_name.split('.')[:-1] ) + '_featurs.npy'
+    np.save(output_name, features)

@@ -394,7 +394,7 @@ def fit_with_gaussian(data):
     return mean, stddev, rot
 
 ################################################################################
-def feature_set_A1(R,t, gap_t, rel_gap_t):
+def feature_set_A1(R, t, gap_t, rel_gap_t):
     '''
     Statistical Feature Set
     -----------------------
@@ -423,51 +423,65 @@ def feature_set_A1(R,t, gap_t, rel_gap_t):
     F: 2darray (mxl)
     m is the number of open_cells and hence the number of raycast vectors
     l is the length of fature vector (it depends on feature set)
-
     '''
 
-    assert R.ndim == 2
+    # check this link:
+    # https://docs.scipy.org/doc/scipy-0.19.0/reference/stats.html
+    # like: scipy.stats.describe
 
+    assert R.ndim == 2
+    
     diff = np.abs( np.diff(R, axis=1) )
     # Average Difference Between the Length of Two Consecutive Beams
     A11 = np.atleast_2d( diff.mean(axis=1) ).T
     # Standard Deviation of the Difference Between the Length of Two Consecutive Beams
     A12 = np.atleast_2d( diff.std(axis=1) ).T
-
-    # since we use raycast and not real laser beams, the max-range is already included
-    # # Average Difference Between the Length of Consecutive Beams Considering Max-Range
-    # A13 =
-    # # Standard Deviation of the Difference Between the Length of Two Consecutive Beams Considering Max-Range
-    # A14 =
+    
+    # # since we use raycast and not real laser beams, the max-range is already included
+    # A13: Average Difference Between the Length of Consecutive Beams Considering Max-Range
+    # A14: Standard Deviation of the Difference Between the Length of Two Consecutive Beams Considering Max-Range
+    
+    # Number of Gaps
+    A17 = np.concatenate( [ np.atleast_2d( np.count_nonzero(diff>gt, axis=1) ).T
+                            for gt in gap_t ],
+                          axis=1 )
+    del diff
 
     # The Average Beam Length
     A15 = np.atleast_2d( R.mean(axis=1) ).T
     # The Standard Deviation of the Beam Length
     A16 = np.atleast_2d( R.std(axis=1) ).T
+    
+    # # For two reason I won't include this:
+    # # 1) too much work
+    # # 2) I don't the point of it anyway!
+    # A18 = Number of Beams Lying on Lines Extracted from the Range (method from \cite{sack2004comparison})
 
-    # Number of Gaps
-    A17 = np.concatenate( [ np.atleast_2d( np.count_nonzero(diff>gt, axis=1) ).T
-                            for gt in gap_t ],
-                          axis=1 )
+    # # # for door frame detection
+    # # A19: Euclidean Distance Between the Two Points Corresponding to Two Consecutive Global Minima
+    # # A110: The Angular Distance Between the Two Points Corresponding to Two Consecutive Global Minima
+    # # These features are specifically designed to find doorways.
+    # # I find the the definition of "Global Minima" very subjective, that requires an ad-hoc minima detection
+    # # instead I take the mean and std of Angular Distances (and skip Euclidean conversion :D)
+    # # UPDATE:  I decide to ignore this too, it's too slow and still is not working well
+    # window_size = R.shape[1]//36
+    # S = utilities.smooth_along_axis(R, window_size, window='hanning')
+    # minima = utilities.find_minima_along_axis(S, window_size)
+    # T_diff = [ np.diff( t[m_idx] ) for m_idx in minima ]
+    # A19a = np.atleast_2d( [T_diff[idx].mean() for idx in range(R.shape[0])] ).T
+    # A19b = np.atleast_2d( [T_diff[idx].std() for idx in range(R.shape[0])] ).T 
 
-    # For two reason I won't include this, 1) too much work, 2) I don't the point of it anyway!
-    # # Number of Beams Lying on Lines Extracted from the Range
-    # A18 = method from \cite{sack2004comparison}
-
-    # for door frame detection
-    # filt = np.vstack( np.hannig(window_size), R.shape[0])
-    # R_smooth = np.apply_along_axis(lambda m: np.convolve(m, filt, mode='full'), axis=1, arr=R)
-    # Global_Minima = 
-    # # Euclidean Distance Between the Two Points Corresponding to Two Consecutive Global Minima
-    # A19 =
-    # # The Angular Distance Between the Two Points Corresponding to Two Consecutive Global Minima
-    # A110 =
-
-    rel = R / np.roll(R, 1, axis=1)
+    rel = R / (np.roll(R, 1, axis=1)+np.spacing(1)) # np.spacing helps avoiding division by zero
     # Average of the Relation Between Two Consecutive Beams
     A111 = np.atleast_2d( rel.mean(axis=1) ).T
     # Standard Deviation of the Relation Between the Length of Two Consecutive Beams
     A112 = np.atleast_2d( rel.std(axis=1) ).T
+
+    # Number of Relative Gaps
+    A115 = np.atleast_2d( np.count_nonzero( rel > rel_gap_t, axis=1) ).T
+    # todo: since it\'s relative, shouldn\'t the condition be ((1/rel_gap_t)< rel <rel_gap_t)?
+
+    del rel
 
     nrm = R / np.atleast_2d( R.max(axis=1) ).T
     # Average of Normalized Beam Length
@@ -475,21 +489,23 @@ def feature_set_A1(R,t, gap_t, rel_gap_t):
     # Standard Deviation of Normalized Beam Length
     A114 = np.atleast_2d( nrm.std(axis=1) ).T
 
-    # Number of Relative Gaps
-    A115 = np.atleast_2d( np.count_nonzero( rel > rel_gat_t, axis=1) ).T
-    # todo: since it\'s relative, shouldn\'t the condition be ((1/rel_gap_t)< rel <rel_gap_t)?
+    del nrm
 
     # Kurtosis
-    A116 = np.atleast_2d( (np.sum((R-A15)**4,axis=1) / (R.shape[1]* A16**4))-3 ).T
-
+    # A16 should be indexed to its only column, otherwise it will be 2d and
+    # the result of division will become a matrix instead of a vector
+    A116 = np.atleast_2d( (np.sum((R-A15)**4,axis=1) / (R.shape[1]*A16[:,0]**4)) - 3 ).T 
+    
     F = np.concatenate( (A11,A12, A15,A16, A17, A111,A112, A113,A114, A115, A116),
                         axis=1)
 
+    # F = np.concatenate( (A11,A12, A15,A16, A17, A19a,A19b, A111,A112, A113,A114, A115, A116),
+    #                     axis=1)
 
     return F
 
 ################################################################################
-def feature_set_A2(R,t):
+def feature_set_A2(R,t, EFD_degree=10):
     '''
     Shape Feature Set
     -----------------
@@ -513,84 +529,147 @@ def feature_set_A2(R,t):
     l is the length of fature vector (it depends on feature set)
     '''
 
-    # # Area of P(z)
-    # A21 = 
+    assert R.ndim == 2
 
-    # # Perimeter of P(z)
-    # A22 = 
+    RR = np.stack( (R,R), axis=2)
+    T = np.stack( [t for _ in range(R.shape[0])], axis=0 )
+    CS = np.stack( [np.cos(T), np.sin(T)], axis=2)
+    XY = RR * CS
+    del RR, T, CS # leave R, XY
 
-    # # Mean Distance Between the Centroid and the Shape Boundary
-    # A23 =
+    ########################################
+    X = XY[:,:,0]
+    Y = XY[:,:,1]
+    ### Area of P(z)
+    A21 = np.atleast_2d( np.sum( X*np.roll(Y,-1,axis=1) - np.roll(X,-1,axis=1)*Y, axis=1) /2. ).T     
+    # leave R, A21, XY, X, Y
 
-    # # Standard Deviation of the Distances Between the Centroid and the Shape Boundary
-    # A24 = 
+    ########################################
+    # PD: the distance between consecutive points in each point set (minus the first to last point distance)
+    PD = np.sqrt(np.diff(XY[:,:,0],axis=1)**2 + np.diff(XY[:,:,1],axis=1)**2) 
+    ### Perimeter of P(z)
+    A22 = np.atleast_2d( np.sum(PD, axis=1) ).T
+    del PD # leave R, A21, A22, XY, X, Y
 
-    # # Invariant Descriptors Based on the Fourier Transformation
-    # A25 = 
+    ########################################
+    ### center of P(z)
+    # Cx, Cy: 1d arrays containg the x and y coordinates of centroids
+    tmp = (X*np.roll(Y,-1,axis=1)-np.roll(X,-1,axis=1)*Y)
+    Cx = np.sum( (X+np.roll(X,-1,axis=1)) * tmp, axis=1) / (A21 *6)[:,0]
+    Cy = np.sum( (Y+np.roll(Y,-1,axis=1)) * tmp, axis=1) / (A21 *6)[:,0]
+    # C: 2d array containg the coordinates (x,y) of centroids
+    C = np.stack( (Cx,Cy), axis=1) 
+    # CX, CY: 2d arrays, that are stacked version of Cx and Cy
+    CX = np.stack( [C[:,0] for _ in range(R.shape[1])], axis=1)
+    CY = np.stack( [C[:,1] for _ in range(R.shape[1])], axis=1)
+    # CD: 2d array, distance of every points in each point set to the centroid of that set
+    CD = np.sqrt( (X - CX)**2 + (Y - CY)**2 ) 
+    del tmp, Cx, Cy, CX, CY # leave R, A21, A22, XY, X, Y, C, CD
 
-    # # Major Axis Ma of the Ellipse that Approximates P(z)
-    # A26 = 
+    # Mean Distance Between the Centroid and the Shape Boundary
+    A23 = np.atleast_2d( CD.mean(axis=1) ).T 
+    # Standard Deviation of the Distances Between the Centroid and the Shape Boundary
+    A24 = np.atleast_2d( CD.std(axis=1) ).T 
 
-    # # Minor Axis Mi of the Ellipse that Approximates P(z)
-    # A27 = 
+    ########################################
+    # Average Normalized Distance Between the Centroid and the Shape Boundary
+    A214 = np.atleast_2d( A23[:,0] / CD.max(axis=1) ).T 
+    # Standard Deviation of the Normalized Distances Between the Centroid and the Shape Boundary
+    A215 = np.atleast_2d( A24[:,0] / CD.max(axis=1) ).T
+    del CD # leave R, A21, A22, A23, A24, XY, X, Y, C
 
-    # # Invariant Moments of P(z)
-    # A28 = 
+    ########################################
+    ### Fourier Transform
+    CMPX = X + 1j*Y
+    FFT = np.fft.fft(CMPX, axis=1, norm=[None, 'ortho'][1])
+    # FFT = {c[0], c[1], ..., c[n-1], c[-n], ..., c[-1]} -> we should shift befor truncating
+    if (EFD_degree > FFT.shape[1]): raise( StandardError('EFD degree can\'t be larger than {:d}'.format(FFT.shape[1]) ) )
+    idx_s, idx_e = (FFT.shape[1] - EFD_degree)//2 , (FFT.shape[1] + EFD_degree)//2
+    FFT = np.fft.ifftshift( np.fft.fftshift(FFT)[:, idx_s:idx_e] ) # truncate
+    ### Elliptic Fourier Descriptor
+    idx = np.stack( [range(FFT.shape[1]//2)+range(-FFT.shape[1]//2,0) for _ in range(FFT.shape[0])], axis=0 )
+    angl = np.angle( FFT )
+    phi_1 = np.stack( [angl[:,1] for _ in range(angl.shape[1])], axis=1 )
+    phi_2 = np.stack( [angl[:,2] for _ in range(angl.shape[1])], axis=1 )
+    absl = np.abs( FFT )
+    abs_1 = np.stack( [absl[:,1] for _ in range(angl.shape[1])], axis=1 )
+    EFD = (absl/abs_1) * np.exp((angl +(1-idx)*phi_2 -(2-idx)*phi_1)*1j)
 
-    # # Normalized Feature of Compactness of P(z)
-    # A29 = 
+    # Invariant Descriptors Based on the Fourier Transformation
+    A25 = EFD
+    del CMPX, idx_s, idx_e, idx, angl, phi_1, phi_2, abs_1, FFT, EFD 
 
-    # # Normalized Feature of Eccentricity of P(z)
-    # A210 = 
+    # Major Axis Ma of the Ellipse that Approximates P(z)
+    A26 = np.atleast_2d( absl[:,1]+absl[:,-1] ).T 
+    # Minor Axis Mi of the Ellipse that Approximates P(z)
+    A27 = np.atleast_2d( np.abs(absl[:,1]-absl[:,-1]) ).T  
+    del absl # leave R, A21,A22,A23,A24,A25,A26,A27, XY, X, Y, C
 
-    # # Form Factor of P(z)
-    # A211 = 
-
-    # # Circularity of P(z)
-    # A212 = 
-
-    # # Normalized Circularity of P(z)
-    # A213 = 
-
-    # # Average Normalized Distance Between the Centroid and the Shape Boundary
-    # A214 = 
+    ########################################
+    ### Normalized Central Moments
+    Xh = np.mean(X, axis=1)
+    Yh = np.mean(Y, axis=1)
+    dX = X - np.stack([Xh for _ in range(X.shape[1])], axis=1)
+    dY = Y - np.stack([Yh for _ in range(Y.shape[1])], axis=1)
+    del Xh, Yh
     
-    # # Standard Deviation of the Normalized Distances Between the Centroid and the Shape Boundary
-    # A215 = 
+    # since this is a point set, there is one summation over points
+    # rather two summation over rows and columns (x,y) as for images
+    # also points have equal value, so there is not f(x,y) to multiply (as in image we do!)
+    MU = lambda p,q: np.sum(dX**p * dY**q, axis=1) / X.shape[1]
+    MU00 = MU(0,0)
+    ETA = lambda p,q: MU(p,q) / MU00**((p+q)/2 +1)
 
-    # F = np.concatenate( (),
-    #                     axis=1)
-
-    return F
-
-################################################################################
-def feature_set_mix(R,t):
-    '''
-    A feature set from "Semantic labeling of places with mobile robots" (See note below)
-
-    Inputs
-    ------
-    t: 1darray (1xn)
-    n is the is the number of rays in each raycast, or the number of angles
+    ETA_11 = ETA(1,1)
+    ETA_02 = ETA(0,2)
+    ETA_20 = ETA(2,0)
+    ETA_12 = ETA(1,2)
+    ETA_21 = ETA(2,1)
+    ETA_30 = ETA(3,0)
+    ETA_03 = ETA(0,3)
     
-    R: 2darray (mxn)
-    m is the number of open_cells and hence the number of raycast vectors
-    n is the number of rays in each raycast (i.e. the length of theta vector)
-   
-    Output
-    ------
-    F: 2darray (mxl)
-    m is the number of open_cells and hence the number of raycast vectors
-    l is the length of fature vector (it depends on feature set)
+    PHI_1 = ETA_20 + ETA_02
+    PHI_2 = (ETA_20 - ETA_02)**2 + 4* ETA_11**2
+    PHI_3 = (ETA_30 - 3*ETA_12)**2 + (3*ETA_21 - ETA_03)**2
+    PHI_4 = (ETA_30 + ETA_12)**2 + (ETA_21 + ETA_03)**2
 
-    Note
-    ----
-    {:s}
-    '''#.format(feature_set_by_oscar(print_out=False))
+    PHI_5 = (ETA_30 - 3*ETA_12) * (ETA_30 + ETA_12) * ( (ETA_30 + ETA_12)**2 - 3*(ETA_21 + ETA_03)**2 )
+    PHI_5 += (3*ETA_21 - ETA_03) * (ETA_21 + ETA_03) * ( 3*(ETA_30 - ETA_12)**2 - (ETA_21 + ETA_03)**2 )
 
-    A1 = feature_set_A1(R)
-    A2 = feature_set_A2(R)
-    F = np.concatenate( (A1,A2), axis=1 )
+    PHI_6 = (ETA_20 - ETA_02) * ( (ETA_30 + ETA_12)**2 - (ETA_21 + ETA_03)**2 )
+    PHI_6 += 4 * ETA_11 * (ETA_30 - ETA_12) * (ETA_21 - ETA_03)
+
+    PHI_7 = (3*ETA_21 - ETA_03) * (ETA_30 - ETA_12) * ( (ETA_30 - ETA_12)**2 - 3*(ETA_21 + ETA_03)**2 )
+    PHI_7 += (3*ETA_12 - ETA_30) * (ETA_21 + ETA_03) * ( 3*(ETA_30 + ETA_12)**2 - (ETA_21 + ETA_03)**2 )
+
+    # Invariant Moments of P(z)    
+    A28 = np.stack( (PHI_1, PHI_2, PHI_3, PHI_4, PHI_5, PHI_6, PHI_7), axis=1 )
+    del PHI_1, PHI_2, PHI_3, PHI_4, PHI_5, PHI_6, PHI_7
+    del ETA_11, ETA_02, ETA_20, ETA_12, ETA_21, ETA_30, ETA_03
+
+    ########################################
+    # A21 is the area
+    MU_11, MU_20, MU_02 = MU(1,1), MU(2,0), MU(0,2)
+    A29 = np.atleast_2d( A21[:,0] / (MU_20+MU_02) ).T
+    # Normalized Feature of Compactness of P(z)
+    if not ( np.all( 0<=A29 ) and np.all( A29<=1 ) ): print('A29 - oops')
+    # Normalized Feature of Eccentricity of P(z)
+    A210 = np.atleast_2d( np.sqrt( (MU_20+MU_02)**2 + 4*MU_11**2 ) / (MU_20+MU_02) ).T
+    if not ( np.all( 0<=A210 ) and np.all( A210<=1 ) ): print('A210 - oops')
+    del MU_11, MU_20, MU_02
+
+    ########################################
+    # A21 and A22 are the area and perimeter
+    # Form Factor of P(z)
+    A211 = np.atleast_2d( 4 * np.pi * A21[:,0] / np.sqrt(A22[:,0]) ).T
+    # Circularity of P(z)
+    A212 = np.atleast_2d( A22[:,0]**2 / A21[:,0] ).T 
+    # Normalized Circularity of P(z)
+    A213 = np.atleast_2d( 4 * np.pi * A21[:,0] / A22[:,0]**2 ).T
+
+    ########################################
+    F = np.concatenate( (A21, A22, A23, A24, A25, A26, A27, A28, A29, A210, A211, A212, A213, A214, A215),
+                        axis=1)
 
     return F
 
