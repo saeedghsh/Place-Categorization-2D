@@ -6,18 +6,13 @@ This repository conatins a python implementation of place categorizatio, explain
 - Shahbandi, Saeed Gholami, Björn Åstrand, and Roland Philippsen. "Semi-supervised semantic labeling of adaptive cell decomposition maps in well-structured environments." Mobile Robots (ECMR), 2015 European Conference on. IEEE, 2015.
 
 The feature set employed in this work is inspired by [link](http://ieeexplore.ieee.org/document/1570363/):
-- Mozos, O. Martınez, Cyrill Stachniss, and Wolfram Burgard. "Supervised learning of places from range data using adaboost." Robotics and Automation, 2005. ICRA 2005. Proceedings of the 2005 IEEE International Conference on. IEEE, 2005.
+- Oscar Martinez Mozos "Semantic labeling of places with mobile robots" 2010, Springer Berlin Heidelberg.
+<!-- - Mozos, O. Martınez, Cyrill Stachniss, and Wolfram Burgard. "Supervised learning of places from range data using adaboost." Robotics and Automation, 2005. ICRA 2005. Proceedings of the 2005 IEEE International Conference on. IEEE, 2005. -->
 
 ![cover](https://github.com/saeedghsh/Place-Categorization-2D/blob/master/docs/E5.png)
 
 Dependencies
 -------------
-	* Python >=2.6
-	* numpy >= 1.10.2
-	* sklearn >= 0.18.0
-	* opencv >= 2
-	* matplotlib >= 1.4.
-	
 To install dependencies:
 ```shell
 git clone https://github.com/saeedghsh/Place-Categorization-2D.git
@@ -36,21 +31,25 @@ Notes
 Paramters
 ---------
 Set the following parameters:
-```
+```python
+# raycasting
 
+# feature extraction
+
+# clustering
 ```
 Then execute on of the script mentioned in the next part.
 
 
 Scripts
 -------
-- `raycast_demo.py`
+- `raycast_demo.py`  
   execute the following to see how raycasting works:
   ```shell
   python raycast_demo.py --image_name 'filename.ext'
   ```
 
-- `raycast_map.py`
+- `raycast_map.py`  
   Results are stored in a `.npy` file.
   To load the results somewhere else:
   ```python
@@ -63,13 +62,14 @@ Scripts
 	  - `t = raycasts['theta_vecs']`
 	  - `r = raycasts['range_vecs'][open_cell_idx,:]`
 
-- `raycast_map_batch.py`
+- `raycast_map_batch.py`  
   This was an attempt to vectorize the raycasting process.
   I tried to raycast all points in open space at once.
   It works, but it requires huge memory and hence becomes super slow as the open space grows.
   I two examples, for ~1000 cells it tooks about 3 seconds and for ~2800 cells it took about a minute!
 
-- `cluster_features.py`
+- `cluster_features.py`  
+As the final stage of place categorization, this script loads features from file and performs clustering on them.
 
 License
 -------

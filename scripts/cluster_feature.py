@@ -141,6 +141,7 @@ if __name__ == '__main__':
     # X /= np.concatenate([X_std for _ in range(X.shape[1]) ],axis=1)
 
     ### clustering
+    print ('\t *********** Also try DBSCAN ***********')
     kmean = sklearn.cluster.KMeans(n_clusters=n_category,
                                    precompute_distances=False,
                                    n_init=20, max_iter=500).fit(X)
