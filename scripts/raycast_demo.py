@@ -63,16 +63,18 @@ if __name__ == '__main__':
     ### load image
     image = np.flipud( cv2.imread( image_name, cv2.IMREAD_GRAYSCALE) )
 
-    ### raycasting config
+    ### raycasting parametere
     raycast_config = {
         'mpp': 0.02, # meter per pixel
         'range_meter': 4, # meter
-        'length_range': 200, #range_meter_ / mpp_
-        'length_steps': 200, #int(length_range_)
+        'range_res': 1, # point per pixel (must be > 1, otherwise doesn't make much sense)
         'theta_range': 2*np.pi,
         'theta_res': 1/1, # step/degree
         'occupancy_thr': 220,
     }
+    raycast_config['length_range'] = raycast_config['range_meter'] // raycast_config['mpp'] # in pixels
+    raycast_config['length_steps'] = raycast_config['length_range'] // raycast_config['range_res'] # 
+
 
     ### constructing the rays_array_xy
     # constructing the rays_array_xy is time consuming, almost as much as raycasting
@@ -97,10 +99,12 @@ if __name__ == '__main__':
     r,t = plcat.raycast_bitmap(pose_, image,
                                raycast_config['occupancy_thr'],
                                raycast_config['length_range'],
-                               raycast_config['length_steps'], 
+                               raycast_config['length_steps'],
+                               raycast_config['mpp'],
+                               raycast_config['range_res'],
                                raycast_config['theta_range'],
                                raycast_config['theta_res'],
                                rays_array_xy=raxy)
 
     ### plot the result
-    pcplt.plot_ray_cast(image, pose_, r,t)
+    pcplt.plot_ray_cast(image, pose_, raycast_config, r,t)

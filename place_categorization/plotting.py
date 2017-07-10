@@ -20,22 +20,28 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 ################################################################################
-def plot_ray_cast(image, pose, r,t):
+def plot_ray_cast(image, pose,
+                  raycast_config,
+                  r,t):
     ''''''
+    r_in_pixel = np.array( r / raycast_config['mpp'], dtype=np.int)
+
     fig, axis = plt.subplots(1,1, figsize=(10,10))
     axis.imshow( image, cmap = 'gray', interpolation='nearest', origin='lower')
     axis.plot(pose[0], pose[1], 'r*')
-    x = pose[0] + r*np.cos(t)
-    y = pose[1] + r*np.sin(t)
+    x = pose[0] + r_in_pixel*np.cos(t)
+    y = pose[1] + r_in_pixel*np.sin(t)
     axis.plot(x, y, 'b.-')
     plt.show()
 
+
+
 ################################################################################
-def plot_rays_arr_xy(image, pose, raxy):
+def plot_rays_arr_xy(image, pose, raycast_config, raxy):
     ''''''
     fig, axis = plt.subplots(1,1, figsize=(10,10))
     axis.imshow( image, cmap = 'gray', interpolation='nearest', origin='lower')
-    axis.plot(pose[0], pose[1], 'r*')
+    # axis.plot(pose[0], pose[1], 'r*')   
     axis.plot(raxy[0,:,:], raxy[1,:,:], 'b.')
     plt.show()
 

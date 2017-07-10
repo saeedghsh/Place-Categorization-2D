@@ -34,6 +34,7 @@ import contextlib as ctx
 from functools import partial
 
 import place_categorization.place_categorization as plcat
+import place_categorization.plotting as pcplt
 
 ################################################################################
 def lock_n_load(file_name, k_size=3):
@@ -74,23 +75,20 @@ if __name__ == '__main__':
         except:
             break   
 
-
-    ### 
-    multiprocessing = 4
-
-    ### raycasting parametere
+    ### raycasting parameters
+    # NOTE: metric resolution of raycast (~accuracy) is range_res*mpp, e.g range_res=5, mpp=.02 -> 0.1m 
     raycast_config = {
         'mpp': 0.02, # meter per pixel
-        'range_meter': 4, # meter
-        'length_range': 200, #range_meter_ / mpp_
-        'length_steps': 200, #int(length_range_)
+        'range_meter': 8, # meter
+        'range_res': 1//1, # pixel per point  (must be > 1, otherwise doesn't make much sense)
         'theta_range': 2*np.pi,
-        'theta_res': 1/1, # step/degree
+        'theta_res': 1//1, # step/degree
         'occupancy_thr': 220,
     }
+    raycast_config['length_range'] = raycast_config['range_meter'] // raycast_config['mpp'] # in pixels
+    raycast_config['length_steps'] = raycast_config['length_range'] // raycast_config['range_res'] # 
 
     ### loading and processing image
-    # image_name = '../map_sample/test.png'
     image = lock_n_load(image_name, k_size=3)
 
     ### constructing the rays_array_xy template
@@ -104,17 +102,22 @@ if __name__ == '__main__':
     open_cells = np.transpose(np.nonzero(image>raycast_config['occupancy_thr'])) # [(row, col),..]
     open_cells = np.roll(open_cells, 1, axis=1) # [(col, row),..]
 
+    # pcplt.plot_rays_arr_xy(image, np.array([0,0]), raycast_config, raxy)
+
     ### partialing raycast_method and leave out only pose argument
     raycast_bitmap_par = partial(plcat.raycast_bitmap,
                                  image=image,
                                  occupancy_thr=raycast_config['occupancy_thr'],
                                  length_range=raycast_config['length_range'],
-                                 length_steps=raycast_config['length_steps'], 
+                                 length_steps=raycast_config['length_steps'],
+                                 mpp=raycast_config['mpp'],
+                                 range_res=raycast_config['range_res'],
                                  theta_range=raycast_config['theta_range'],
                                  theta_res=raycast_config['theta_res'],
                                  rays_array_xy=raxy)
     
     ### raycasting with multi-processing
+    multiprocessing = mp.cpu_count()
     tic = time.time()
     with ctx.closing(mp.Pool(processes=multiprocessing)) as p:
         r_t_s = p.map( raycast_bitmap_par, open_cells)

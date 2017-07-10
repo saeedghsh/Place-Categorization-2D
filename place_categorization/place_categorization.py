@@ -22,8 +22,10 @@ import utilities
 
 ################################################################################
 def construct_raycast_array(pose=[0,0],
-                            length_range=30, length_steps=30, 
-                            theta_range=2*np.pi, theta_res=1/1):
+                            length_range=30,
+                            length_steps=30, 
+                            theta_range=2*np.pi,
+                            theta_res=1/1):
     '''
     This method constructs a 3d array as a discrete representiion of raycast.
     The output of this method is used in raycasting.
@@ -115,7 +117,9 @@ def construct_raycast_array(pose=[0,0],
 def raycast_bitmap_batch(open_cells, image,
                          occupancy_thr=127,
                          length_range=30,
-                         length_steps=30, 
+                         length_steps=30,
+                         mpp= 0.02,
+                         range_res =1,
                          theta_range=2*np.pi,
                          theta_res=1/1,
                          rays_array_xy=None):
@@ -137,6 +141,12 @@ def raycast_bitmap_batch(open_cells, image,
     -----------
     occupancy_thr:
     a pixel with value less-equal to this threshold is considered as occupied (default: 127)
+
+    mpp
+    metric resolution of the occumpancy map ( meter per pixel )
+
+    range_res
+    pixel distance between points in the rays (pixel per point)
 
     length_range:
     the length of a ray in pixel (default: 30)
@@ -224,17 +234,18 @@ def raycast_bitmap_batch(open_cells, image,
     r_idx = np.concatenate((np.atleast_1d(r_idx[0]), r_idx[np.nonzero(np.diff(t_idx)!=0)[0]+1]))
     r_idx = r_idx.reshape(open_cells.shape[0], theta_steps)
 
-    # scaling (converting) range values from index to distance
-    R = r_idx * float(length_range)/length_steps
+    # scaling (converting) range values from ray point index to distance in meter
+    R = r_idx * range_res * mpp
 
     return R,t
-
 
 ################################################################################
 def raycast_bitmap(pose, image,
                    occupancy_thr=127,
                    length_range=30,
-                   length_steps=30, 
+                   length_steps=30,
+                   mpp= 0.02,
+                   range_res =1,
                    theta_range=2*np.pi,
                    theta_res=1/1,
                    rays_array_xy=None):
@@ -257,6 +268,12 @@ def raycast_bitmap(pose, image,
     -----------
     occupancy_thr:
     a pixel with value less-equal to this threshold is considered as occupied (default: 127)
+
+    mpp
+    metric resolution of the occumpancy map ( meter per pixel )
+
+    range_res
+    pixel distance between points in the rays (pixel per point)
 
     length_range:
     the length of a ray in pixel (default: 30)
@@ -351,50 +368,13 @@ def raycast_bitmap(pose, image,
     # old way ~3.64616513252 Second for 1000 raycast
     # r_idx = np.array([ np.nonzero(ray<=occupancy_thr)[0][0] for ray in rays_image_val ]).astype(float)
     
-    # scaling (converting) range values from index to distance
-    r = r_idx * float(length_range)/length_steps
+    # scaling (converting) range values from ray point index to distance in meter
+    r = r_idx * range_res * mpp
 
     return r,t
 
 ################################################################################
-def fit_with_gaussian(data):
-    '''
-    <<GAUSSIAN DISTRIBUTION ESTIMATION>>
-
-    Input:
-    ------
-    input to this class is a numpy.ndarray with dimensions NxD, where:
-    N= number of sample points
-    D= space dimension of distribution
-
-    Outputs:
-    --------
-    FitGaussian.mean      (1xD) numpy.ndarray representing center of the distribution (ie. estimated gaussian).
-    FitGaussian.stddev    (1xD) numpy.ndarray representing standard deviation of the distribution in direction of PCAs.
-    FitGaussian.rotation  (DxD) numpy.ndarray representing the orientation of estimated gaussian.    
-    '''
-
-    N = data.shape[0]
-    Dimension = data.shape[1]
-
-    # Compute the center of gravity = center of the gaussian
-    mean = np.mean(data,0)
-
-    # Translate the distribution to center its CoG at origin of the 
-    zero_mean_data = np.float64(data.copy())
-    for i in range(Dimension):
-        zero_mean_data[:,i] -= mean[i]
-        
-    # Compute the singular value decomposition
-    U,S,V = np.linalg.svd(zero_mean_data)
-        
-    stddev = S / np.sqrt(N)
-    rot = V
-            
-    return mean, stddev, rot
-
-################################################################################
-def feature_set_A1(R, t, gap_t, rel_gap_t):
+def feature_set_A1(R, t, raycast_config, gap_t, rel_gap_t):
     '''
     Statistical Feature Set
     -----------------------
@@ -437,9 +417,6 @@ def feature_set_A1(R, t, gap_t, rel_gap_t):
     # Standard Deviation of the Difference Between the Length of Two Consecutive Beams
     A12 = np.atleast_2d( diff.std(axis=1) ).T
     
-    # # since we use raycast and not real laser beams, the max-range is already included
-    # A13: Average Difference Between the Length of Consecutive Beams Considering Max-Range
-    # A14: Standard Deviation of the Difference Between the Length of Two Consecutive Beams Considering Max-Range
     
     # Number of Gaps
     A17 = np.concatenate( [ np.atleast_2d( np.count_nonzero(diff>gt, axis=1) ).T
@@ -451,6 +428,13 @@ def feature_set_A1(R, t, gap_t, rel_gap_t):
     A15 = np.atleast_2d( R.mean(axis=1) ).T
     # The Standard Deviation of the Beam Length
     A16 = np.atleast_2d( R.std(axis=1) ).T
+
+    # TODO: double check if this is exactly what is suggested in Oscar's thesis
+    # Average Difference Between the Length of Consecutive Beams Considering Max-Range
+    A13 = A15 / raycast_config['range_meter']
+    # Standard Deviation of the Difference Between the Length of Two Consecutive Beams Considering Max-Range
+    A14 = A16 / raycast_config['range_meter']
+
     
     # # For two reason I won't include this:
     # # 1) too much work
@@ -472,6 +456,9 @@ def feature_set_A1(R, t, gap_t, rel_gap_t):
     # A19b = np.atleast_2d( [T_diff[idx].std() for idx in range(R.shape[0])] ).T 
 
     rel = R / (np.roll(R, 1, axis=1)+np.spacing(1)) # np.spacing helps avoiding division by zero
+    # In the following line the 1./rel might encounter division by zero, but it should matter
+    # Because if rel was original zero (hence division by zero), then its zero value is copied to final rel
+    rel = np.where (rel<=1, rel, 1./rel) # making sure all relative length are (min/max) ie. 0<rel<=1
     # Average of the Relation Between Two Consecutive Beams
     A111 = np.atleast_2d( rel.mean(axis=1) ).T
     # Standard Deviation of the Relation Between the Length of Two Consecutive Beams
@@ -479,8 +466,6 @@ def feature_set_A1(R, t, gap_t, rel_gap_t):
 
     # Number of Relative Gaps
     A115 = np.atleast_2d( np.count_nonzero( rel > rel_gap_t, axis=1) ).T
-    # todo: since it\'s relative, shouldn\'t the condition be ((1/rel_gap_t)< rel <rel_gap_t)?
-
     del rel
 
     nrm = R / np.atleast_2d( R.max(axis=1) ).T
@@ -552,7 +537,7 @@ def feature_set_A2(R,t, EFD_degree=10):
     del PD # leave R, A21, A22, XY, X, Y
 
     ########################################
-    ### center of P(z)
+    ### centeroid of P(z)
     # Cx, Cy: 1d arrays containg the x and y coordinates of centroids
     tmp = (X*np.roll(Y,-1,axis=1)-np.roll(X,-1,axis=1)*Y)
     Cx = np.sum( (X+np.roll(X,-1,axis=1)) * tmp, axis=1) / (A21 *6)[:,0]
@@ -596,7 +581,10 @@ def feature_set_A2(R,t, EFD_degree=10):
     EFD = (absl/abs_1) * np.exp((angl +(1-idx)*phi_2 -(2-idx)*phi_1)*1j)
 
     # Invariant Descriptors Based on the Fourier Transformation
-    A25 = EFD
+    # TODO:
+    # EFD values are complex and I take their absolute value to match other features' type
+    # not sure if this is correct!
+    A25 = np.abs( EFD )
     del CMPX, idx_s, idx_e, idx, angl, phi_1, phi_2, abs_1, FFT, EFD 
 
     # Major Axis Ma of the Ellipse that Approximates P(z)
@@ -673,6 +661,145 @@ def feature_set_A2(R,t, EFD_degree=10):
 
     return F
 
+
+################################################################################
+def feature_subset(R,t, raycast_config, gap_t):
+    '''
+    
+    
+
+    Inputs
+    ------
+    t: 1darray (1xn)
+    n is the is the number of rays in each raycast, or the number of angles
+    
+    R: 2darray (mxn)
+    m is the number of open_cells and hence the number of raycast vectors
+    n is the number of rays in each raycast (i.e. the length of theta vector)
+   
+
+    Output
+    ------
+    F: 2darray (mxl)
+    m is the number of open_cells and hence the number of raycast vectors
+    l is the length of fature vector (it depends on the parameters, eg. number of gap thresholds)
+    '''
+
+    assert R.ndim == 2
+
+    ###### normalized mean and std of ranges - A13, A14
+    A13 = np.atleast_2d( R.mean(axis=1) ).T / raycast_config['range_meter']
+    # The Standard Deviation of the Beam Length
+    A14 = np.atleast_2d( R.std(axis=1) ).T / raycast_config['range_meter']
+
+    ###### normalized mean and std of differences of ranges  - A11, A12 (Normalized)
+    diff = np.abs( np.diff(R, axis=1) ) / raycast_config['range_meter']
+    # Average Difference Between the Length of Two Consecutive Beams
+    A11 = np.atleast_2d( diff.mean(axis=1) ).T
+    # Standard Deviation of the Difference Between the Length of Two Consecutive Beams
+    A12 = np.atleast_2d( diff.std(axis=1) ).T
+
+    ########################################
+    RR = np.stack( (R,R), axis=2)
+    T = np.stack( [t for _ in range(R.shape[0])], axis=0 )
+    CS = np.stack( [np.cos(T), np.sin(T)], axis=2)
+    XY = RR * CS
+    X = XY[:,:,0]
+    Y = XY[:,:,1]
+
+    del RR, T, CS
+    ########################################
+    ### Area of P(z)
+    A21 = np.atleast_2d( np.sum( X*np.roll(Y,-1,axis=1) - np.roll(X,-1,axis=1)*Y, axis=1) /2. ).T     
+    del X,Y
+
+    ########################################
+    # PD: the distance between consecutive points in each point set (minus the first to last point distance)
+    PD = np.sqrt(np.diff(XY[:,:,0],axis=1)**2 + np.diff(XY[:,:,1],axis=1)**2) 
+    ### Perimeter of P(z)
+    A22 = np.atleast_2d( np.sum(PD, axis=1) ).T
+    del PD
+    ### 
+    C = A22**2 / A21
+
+    ###### counting gaps - A17
+    # Number of Gaps
+    A17 = np.concatenate( [ np.atleast_2d( np.count_nonzero(diff>gt, axis=1) ).T
+                            for gt in gap_t ],
+                          axis=1 )
+    del diff
+
+    ###### the kurtosis - A116
+    A15 = np.atleast_2d( R.mean(axis=1) ).T # The Average Beam Length
+    A16 = np.atleast_2d( R.std(axis=1) ).T # The Standard Deviation of the Beam Length
+    A116 = (np.sum((R-A15)**4,axis=1) / (R.shape[1]*A16[:,0]**4)) - 3
+    A116 = np.atleast_2d( np.where(np.isnan(A116), np.zeros(A116.shape[0]), A116  ) ).T
+    del A15, A16
+
+    ###### PCA, the bias of center of gravity, etc.
+    # Compute the center of gravity = center of the gaussian
+    Center_of_Gravity = XY.mean(axis=1)
+    # Translate the distribution to center its CoG at origin of the
+    XY_centered = XY - np.stack([Center_of_Gravity for _ in range(XY.shape[1])], axis=1)
+    # Compute the singular value decomposition
+    S = np.linalg.svd(XY_centered, full_matrices=False,compute_uv=False)
+    del XY_centered
+
+    ### principle components
+    STD = S/ np.sqrt(XY.shape[1]) 
+    del S, XY
+
+    ### ratio between principle components
+    RAT = np.atleast_2d(STD[:,0]/STD[:,1]).T 
+    ### the bias of the center
+    BIA = np.atleast_2d( np.sqrt(Center_of_Gravity[:,0]**2+Center_of_Gravity[:,1]**2)).T 
+
+    F = np.concatenate( (A13, A14, A11, A12, A21, A22, C, A17, A116, STD, RAT, BIA), # A15, A16
+                        axis=1)
+    return F
+
+
+################################################################################
+################################################################################
+################################################################################
+
+################################################################################
+def fit_with_gaussian(data):
+    '''
+    <<GAUSSIAN DISTRIBUTION ESTIMATION>>
+
+    Input:
+    ------
+    input to this class is a numpy.ndarray with dimensions NxD, where:
+    N= number of sample points
+    D= space dimension of distribution
+
+    Outputs:
+    --------
+    FitGaussian.mean      (1xD) numpy.ndarray representing center of the distribution (ie. estimated gaussian).
+    FitGaussian.stddev    (1xD) numpy.ndarray representing standard deviation of the distribution in direction of PCAs.
+    FitGaussian.rotation  (DxD) numpy.ndarray representing the orientation of estimated gaussian.    
+    '''
+
+    N = data.shape[0]
+    Dimension = data.shape[1]
+
+    # Compute the center of gravity = center of the gaussian
+    mean = np.mean(data,0)
+
+    # Translate the distribution to center its CoG at origin of the 
+    zero_mean_data = np.float64(data.copy())
+    for i in range(Dimension):
+        zero_mean_data[:,i] -= mean[i]
+        
+    # Compute the singular value decomposition
+    U,S,V = np.linalg.svd(zero_mean_data)
+        
+    stddev = S / np.sqrt(N)
+    rot = V
+            
+    return mean, stddev, rot
+
 ################################################################################
 def raycast_to_features(t,r,
                         mpp, RLimit,
@@ -680,6 +807,11 @@ def raycast_to_features(t,r,
     '''
     Insipred by [1] this method delivers a feature vector that is a descriptor
     for the shape of the surrounding, represented by the raycast in input
+
+    Note:
+    This is old implementation (not vectorized)
+    for new version see feature_subset()
+
 
     Inputs:
     -------
@@ -697,20 +829,21 @@ def raycast_to_features(t,r,
     Output:
     -------
 
-    Note:
-    -----
-    Elements of the feature vectore: 
-    1. Euclidean distance between the two points corresponding to the two smallest local minima.
-    2. The angular distance between the beams corresponding to the local minima in previous.
-    3. 200 similarity invariant descriptors based in the Fourier transformation.
-    4. Major axis Ma of the ellipse that approximates P(z) using the first two Fourier coefficients.
-    5. Minor axis Mi of the ellipse that approximate P(z) using the first two Fourier coefficients.
-    6. Ma/Mi.
-    7. Seven invariants calculated from the central moments of P(z).
+    Elements of the feature vector
+    ------------------------------
+    [x] 1. Euclidean distance between the two points corresponding to the two smallest local minima.
+    [x] 2. The angular distance between the beams corresponding to the local minima in previous.
+    [x] 3. 200 similarity invariant descriptors based in the Fourier transformation.
+    [v] 4. Major axis Ma of the ellipse that approximates P(z) using the first two Fourier coefficients.
+    [v] 5. Minor axis Mi of the ellipse that approximate P(z) using the first two Fourier coefficients.
+    [v] 6. Ma/Mi.
+    [x] 7. Seven invariants calculated from the central moments of P(z).
     8. Normalized feature of compactness of P(z).
     9. Normalized feature of eccentricity of P(z).
     10. Form factor of P(z)
 
+    references
+    ----------
     [1] Mozos, O. Martinez, and Wolfram Burgard.
     "Supervised learning of topological maps using semantic information extracted from range data."
     Intelligent Robots and Systems, 2006 IEEE/RSJ International Conference on. IEEE, 2006.
@@ -735,14 +868,14 @@ def raycast_to_features(t,r,
     # ]
     
 
-    ###### normalized mean and std of ranges
+    ###### normalized mean and std of ranges - A15, A16
     r_mean = np.mean(r)
     r_stdv = np.sqrt( np.sum((r-r_mean)**2) /len(r) )
     r_mean_norm = r_mean / RLimit
     r_stdv_norm = r_stdv / RLimit
     f.append(r_mean_norm), f.append(r_stdv_norm)
 
-    ###### normalized mean and std of differences of ranges    
+    ###### normalized mean and std of differences of ranges  - A11, A12
     diff_mean = np.mean(np.abs(np.diff(r)))
     diff_stdv = np.sqrt( np.sum((np.abs(np.diff(r))-diff_mean)**2) /len(r) )
     diff_mean_norm = diff_mean / RLimit
@@ -766,12 +899,12 @@ def raycast_to_features(t,r,
     C = P**2/A
     f.append(A), f.append(P), f.append(C)
 
-    ###### counting thresholds
+    ###### counting gaps - A17
     for gt in gapThreshold:
         gap_count = len(np.nonzero(np.abs(np.diff(r))>gt)[0])
         f.append(gap_count)
     
-    ###### the kurtosis
+    ###### the kurtosis - A116
     if np.abs(r_stdv) < np.spacing(10**10):
         f.append( 0 )
     else:
@@ -860,35 +993,6 @@ def features_extraction(row_col,
 ################################################################################
 ################################################################################
 ################################################################################
-
-# ################################################################################
-# def get_distance_matrix(points):
-#     '''
-#     This is useless now!
-#     even if need could use: scipy.spatial.distance.cdist instead
-    
-#     Returns a matrix "distances" that is the distance between pairs of points
-    
-#     Input:
-#     ------
-#     points:
-#     a 2d numpy array of N points coordinates (Nx2)
-
-#     Output:
-#     -------
-#     a 2d numpy array of of distances between points (NxN)
-#     '''
-#     xh = np.repeat( [points[:,0]], points.shape[0], axis=0)
-#     xv = np.repeat( [points[:,0]], points.shape[0], axis=0).T
-#     dx = xh - xv
-    
-#     yh = np.repeat( [points[:,1]], points.shape[0], axis=0)
-#     yv = np.repeat( [points[:,1]], points.shape[0], axis=0).T
-#     dy = yh - yv
-    
-#     distances = np.sqrt( dx**2 + dy**2)
-
-#     return distances
 
 # ################################################################################
 # def raycast_pointcloud(pointcloud, pose,

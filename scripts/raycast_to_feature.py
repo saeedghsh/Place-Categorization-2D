@@ -36,7 +36,6 @@ from functools import partial
 import place_categorization.place_categorization as plcat
 import place_categorization.plotting as pcplt
 import place_categorization.utilities as utls
-reload(utls)
 
 ################################################################################
 def lock_n_load(file_name, k_size=3):
@@ -58,9 +57,9 @@ def lock_n_load(file_name, k_size=3):
 ################################################################################
 ################################################################################
 ################################################################################
-if __name__ == '__main__':
+if 1:#__name__ == '__main__':
     '''
-    python raycast_map.py --image_name ../map_sample/test_.png
+    python raycast_to_feature.py --image_name ../map_sample/test_.png
     '''
     args = sys.argv
 
@@ -76,12 +75,7 @@ if __name__ == '__main__':
         except:
             break   
 
-    # ### 
-    # multiprocessing = 4
-
     ### loading and processing image
-    # image_name = '../map_sample/kpt4a_full.png'
-    # image_name = '../map_sample/test_.png'
     image = lock_n_load(image_name, k_size=3)
     raycasts_name = '.'.join( image_name.split('.')[:-1] ) + '_raycasts.npy'
     raycasts = np.atleast_1d( np.load(raycasts_name) )[0]
@@ -93,29 +87,33 @@ if __name__ == '__main__':
     t = raycasts['theta_vecs']
 
     # idx = np.random.randint(open_cells.shape[0])
-    # pcplt.plot_ray_cast(image, open_cells[idx,:], R[idx,:], T[idx,:])       
+    # pcplt.plot_ray_cast(image, open_cells[idx,:], raycast_config, R[idx,:], t)
 
-    print('\t **************** TODO ****************')
-    print('\t what is the metric of R?')
-    print('\t what is the threshold for relative gap in A1?')
-    print('\t what is the EFD_coefficient_degree in A2?')
-    print('\t what to do with complext values in A2?')
-    print('\t **************************************')
+    gap_t = range(0,raycast_config['range_meter'], 2)[1:] # e.g. [2,4,6] in meter
+    rel_gap_t = 0.5
+    EFD_degree = 200
+
+    # tic = time.time()
+    # # if memory is short, do one by one. But the function expects 2d array for R, so it goes like:
+    # # F = plcat.feature_set_A1(np.atleast_2d(R[0,:]), t, raycast_config, gap_t, rel_gap_t)
+    # FA1 = plcat.feature_set_A1(R, t, raycast_config, gap_t, rel_gap_t)
+    # print ('time to extract features (A1) for {:d} opencells: {:f}'.format(open_cells.shape[0],time.time()-tic))
+
+    # tic = time.time()
+    # FA2 = plcat.feature_set_A2(R, t, EFD_degree)
+    # print ('time to extract features (A2) for {:d} opencells: {:f}'.format(open_cells.shape[0],time.time()-tic))
+    # F = np.concatenate( (FA1, FA2), axis=1)
 
     tic = time.time()
-    # if memory is short, do one by one. But the function expects 2d array for R, so it goes like:
-    # F = plcat.feature_set_A1(np.atleast_2d(R[0,:]), t, [50, 100, 150], 0.5)
-    FA1 = plcat.feature_set_A1(R, t, [50, 100, 150], 0.5)
-    print ('time to extract features (A1) for {:d} opencells: {:f}'.format(open_cells.shape[0],time.time()-tic))
-
-    tic = time.time()
-    FA2 = plcat.feature_set_A2(R, t, EFD_degree=10)
-    print ('time to extract features (A2) for {:d} opencells: {:f}'.format(open_cells.shape[0],time.time()-tic))
+    Fsubset = plcat.feature_subset(R,t, raycast_config, gap_t)
+    print ('time to extract features (subset) for {:d} opencells: {:f}'.format(open_cells.shape[0],time.time()-tic))
+    F = Fsubset
 
     features = {
         'open_cells': open_cells,
-        'features': np.concatenate( (FA1, FA2), axis=1)
+        'features': F
     }
 
-    output_name = '.'.join( image_name.split('.')[:-1] ) + '_featurs.npy'
+    output_name = '.'.join( image_name.split('.')[:-1] ) + '_features.npy'
     np.save(output_name, features)
+    print (output_name)

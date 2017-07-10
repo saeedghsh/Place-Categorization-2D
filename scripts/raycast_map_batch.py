@@ -70,17 +70,18 @@ if 1:#__name__ == '__main__':
         except:
             break   
 
-
     ### raycasting parametere
     raycast_config = {
         'mpp': 0.02, # meter per pixel
         'range_meter': 4, # meter
-        'length_range': 200, #range_meter_ / mpp_
-        'length_steps': 200, #int(length_range_)
+        'range_res': 1, # point per pixel (must be > 1, otherwise doesn't make much sense)
         'theta_range': 2*np.pi,
         'theta_res': 1/1, # step/degree
         'occupancy_thr': 220,
     }
+    raycast_config['length_range'] = raycast_config['range_meter'] // raycast_config['mpp'] # in pixels
+    raycast_config['length_steps'] = raycast_config['length_range'] // raycast_config['range_res'] # 
+
 
     ### loading and processing image
     image = lock_n_load(image_name, k_size=3)
@@ -102,7 +103,9 @@ if 1:#__name__ == '__main__':
     R,t = plcat.raycast_bitmap_batch(open_cells, image,
                                      occupancy_thr=raycast_config['occupancy_thr'],
                                      length_range=raycast_config['length_range'],
-                                     length_steps=raycast_config['length_steps'], 
+                                     length_steps=raycast_config['length_steps'],
+                                     mpp=raycast_config['mpp'],
+                                     range_res=raycast_config['range_res'],
                                      theta_range=raycast_config['theta_range'],
                                      theta_res=raycast_config['theta_res'],
                                      rays_array_xy=raxy)

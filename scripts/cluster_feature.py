@@ -84,6 +84,7 @@ if __name__ == '__main__':
     '''
     options
     -------
+    -normalize (normalizes the features by removing bias and deviding by std)
     -visualize
     -save_to_file
 
@@ -118,9 +119,12 @@ if __name__ == '__main__':
 
     visualize = True if 'visualize' in options else False
     save_to_file = True if 'save_to_file' in options else False
+ 
     out_file_name = '.'.join( image_name.split('.')[:-1] ) + '_place_categories.npy'
     save_to_file = out_file_name if save_to_file==True else False
     n_category = int(n_category) if 'n_category' in locals() else 2
+    normalize = True if 'normalize' in options else False
+
 
     ### loading and processing image
     # image_name = '../map_sample/kpt4a_full.png'
@@ -128,24 +132,33 @@ if __name__ == '__main__':
 
     ### loading features
     # raycasts_name = '.'.join( image_name.split('.')[:-1] ) + '_raycasts.npy'
-    feature_name = '.'.join( image_name.split('.')[:-1] ) + '_featurs.npy'
+    feature_name = '.'.join( image_name.split('.')[:-1] ) + '_features.npy'
     features = np.atleast_1d( np.load(feature_name) )[0]
     
     open_cells = features['open_cells']
     X = features['features']
 
-    # ### Normalizing
-    # X_mean = np.atleast_2d( np.mean( X, axis=1 ) ).T
-    # X_std = np.atleast_2d( np.std( X, axis=1 ) ).T
-    # X -= np.concatenate([X_mean for _ in range(X.shape[1]) ],axis=1)
-    # X /= np.concatenate([X_std for _ in range(X.shape[1]) ],axis=1)
+    ### Normalizing
+    if normalize:
+        print ('\t *********** normalizing features ***********')
+        X_mean = np.atleast_2d( np.mean( X, axis=1 ) ).T
+        X_std = np.atleast_2d( np.std( X, axis=1 ) ).T
+        X -= np.concatenate([X_mean for _ in range(X.shape[1]) ],axis=1)
+        X /= np.concatenate([X_std for _ in range(X.shape[1]) ],axis=1)
 
     ### clustering
-    print ('\t *********** Also try DBSCAN ***********')
-    kmean = sklearn.cluster.KMeans(n_clusters=n_category,
-                                   precompute_distances=False,
-                                   n_init=20, max_iter=500).fit(X)
-    labels = kmean.labels_
+    if 1:
+        print ('\t Kmean... ')
+        clusterer = sklearn.cluster.KMeans(n_clusters=n_category,
+                                           precompute_distances=False,
+                                           n_init=20, max_iter=500)
+    else:
+        print ('\t DBSCAN... ')
+        clusterer = sklearn.cluster.DBSCAN(eps=1.,
+                                           min_samples = open_cells.shape[0]/10)
+
+    clusterer.fit(X)
+    labels = clusterer.labels_
 
     ### generating and storing labeling image
     label_image = np.ones(image.shape) *-1 # initializing every pixel as outlier
