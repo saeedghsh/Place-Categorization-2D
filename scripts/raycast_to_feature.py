@@ -34,9 +34,11 @@ import contextlib as ctx
 from functools import partial
 
 import place_categorization.place_categorization as plcat
-import place_categorization.plotting as pcplt
-import place_categorization.utilities as utls
+# import place_categorization.plotting as pcplt
+# import place_categorization.utilities as utls
 
+################################################################################
+################################################################################
 ################################################################################
 def lock_n_load(file_name, k_size=3):
     '''
@@ -57,7 +59,7 @@ def lock_n_load(file_name, k_size=3):
 ################################################################################
 ################################################################################
 ################################################################################
-if 1:#__name__ == '__main__':
+if __name__ == '__main__':
     '''
     python raycast_to_feature.py --image_name ../map_sample/test_.png
     '''
@@ -93,6 +95,13 @@ if 1:#__name__ == '__main__':
     rel_gap_t = 0.5
     EFD_degree = 200
 
+    features_config = {
+        'feature_set': 'subset',
+        'gap_t': gap_t,
+        'rel_gap_t': rel_gap_t,
+        'EFD_degree': EFD_degree
+    }
+
     # tic = time.time()
     # # if memory is short, do one by one. But the function expects 2d array for R, so it goes like:
     # # F = plcat.feature_set_A1(np.atleast_2d(R[0,:]), t, raycast_config, gap_t, rel_gap_t)
@@ -111,9 +120,9 @@ if 1:#__name__ == '__main__':
 
     features = {
         'open_cells': open_cells,
-        'features': F
+        'features': F,
+        'features_config': features_config
     }
 
     output_name = '.'.join( image_name.split('.')[:-1] ) + '_features.npy'
     np.save(output_name, features)
-    print (output_name)

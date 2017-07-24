@@ -52,7 +52,7 @@ def lock_n_load(file_name, k_size=3):
 ################################################################################
 ################################################################################
 ################################################################################
-if 1:#__name__ == '__main__':
+if __name__ == '__main__':
     '''
     python raycast_map_batch.py --image_name ../map_sample/test.png
     '''
@@ -82,8 +82,8 @@ if 1:#__name__ == '__main__':
     raycast_config['length_range'] = raycast_config['range_meter'] // raycast_config['mpp'] # in pixels
     raycast_config['length_steps'] = raycast_config['length_range'] // raycast_config['range_res'] # 
 
-
     ### loading and processing image
+    image_name = '../map_sample/test.png'
     image = lock_n_load(image_name, k_size=3)
 
     ### constructing the rays_array_xy template
@@ -92,11 +92,14 @@ if 1:#__name__ == '__main__':
                                           raycast_config['length_steps'],
                                           raycast_config['theta_range'],
                                           raycast_config['theta_res'] )
-    
 
     ### finding free space (unoccupied pixels) from which to raycast
     open_cells = np.transpose(np.nonzero(image>raycast_config['occupancy_thr'])) # [(row, col),..]
     open_cells = np.roll(open_cells, 1, axis=1) # [(col, row),..]
+
+    ### type casting
+    raxy = raxy.astype(np.int16)
+    open_cells = open_cells.astype(np.int16)
 
     ### Raycasting for all point at once
     tic = time.time()

@@ -31,6 +31,7 @@ import numpy as np
 import sklearn.cluster
 import matplotlib.pyplot as plt
 
+import scipy.misc
 
 # import place_categorization.place_categorization as plcat
 # import place_categorization.plotting as pcplt
@@ -59,7 +60,8 @@ def _visualize_save(label_image, visualize=True, save_to_file=False):
     '''
     '''
     if visualize and save_to_file:
-        np.save( save_to_file, label_image)
+        # np.save( save_to_file, label_image)
+        scipy.misc.imsave(save_to_file+'.png', label_image)
 
         fig, axes = plt.subplots(1,1, figsize=(10,10))
         axes.imshow(label_image, origin='lower')
@@ -74,8 +76,8 @@ def _visualize_save(label_image, visualize=True, save_to_file=False):
         plt.show()
 
     if save_to_file:
-        np.save( save_to_file, label_image)
-
+        # np.save( save_to_file, label_image)
+        scipy.misc.imsave(save_to_file+'.png', np.flipud(label_image))
 
 ################################################################################
 ################################################################################
@@ -120,12 +122,17 @@ if __name__ == '__main__':
     visualize = True if 'visualize' in options else False
     save_to_file = True if 'save_to_file' in options else False
  
-    out_file_name = '.'.join( image_name.split('.')[:-1] ) + '_place_categories.npy'
-    save_to_file = out_file_name if save_to_file==True else False
     n_category = int(n_category) if 'n_category' in locals() else 2
     normalize = True if 'normalize' in options else False
 
+    
+    if normalize:
+        out_file_name = '.'.join( image_name.split('.')[:-1] ) + '_place_categories_{:d}_normalized.npy'.format(n_category)
+    else:
+        out_file_name = '.'.join( image_name.split('.')[:-1] ) + '_place_categories_{:d}.npy'.format(n_category)
 
+    save_to_file = out_file_name if save_to_file==True else False
+    
     ### loading and processing image
     # image_name = '../map_sample/kpt4a_full.png'
     image = _lock_n_load(image_name, k_size=3)
@@ -138,6 +145,11 @@ if __name__ == '__main__':
     open_cells = features['open_cells']
     X = features['features']
 
+    ### replacing weird values with 1, (TODO: WHY 1?)
+    # print (np.any(np.isnan(X)), np.any(np.isinf(X)))
+    X = np.where(np.logical_or(np.isnan(X), np.isinf(X)), 1, X  )
+    # X = np.where(np.logical_or(np.isnan(X), np.isinf(X)), 0, X )
+        
     ### Normalizing
     if normalize:
         print ('\t *********** normalizing features ***********')
@@ -145,6 +157,7 @@ if __name__ == '__main__':
         X_std = np.atleast_2d( np.std( X, axis=1 ) ).T
         X -= np.concatenate([X_mean for _ in range(X.shape[1]) ],axis=1)
         X /= np.concatenate([X_std for _ in range(X.shape[1]) ],axis=1)
+    # print (np.any(np.isnan(X)), np.any(np.isinf(X)))
 
     ### clustering
     if 1:
@@ -165,3 +178,7 @@ if __name__ == '__main__':
     label_image[open_cells[:,1],open_cells[:,0]] = labels
 
     _visualize_save(label_image, visualize, save_to_file)
+
+
+
+
