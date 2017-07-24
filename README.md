@@ -19,7 +19,7 @@ To install dependencies:
 ```shell
 git clone https://github.com/saeedghsh/Place-Categorization-2D.git
 cd Place-Categorization-2D
-pip install -r requirements.txt
+pip install -r requirements.txt % opencv must be installed separately
 ```
 
 Notes
