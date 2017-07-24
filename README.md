@@ -24,10 +24,17 @@ pip install -r requirements.txt % opencv must be installed separately
 
 Notes
 -----
-- This repository contains the core method for place categorization.
-  It is not adaptive to environment types, and paramters must be set according to input maps (e.g. resolution).
-  For a better performance, one need to tweak parameters of the clustering algorithm, manually (or adaptively).
-- The decomposition of the 2D plane from the abovementioned paper ("Semi-supervised ...") is carried out by the [arrangement](https://github.com/saeedghsh/arrangement) package.
+- This repository only contains the core method for place categorization, not the full method from the paper above.
+  For instance:
+	* It is not adaptive to environment types, and paramters must be set according to input maps (e.g. resolution).
+	For a better performance, one need to tweak parameters of the clustering algorithm, manually (or adaptively).
+	* The decomposition of the 2D plane from the abovementioned paper ("Semi-supervised ...") is carried out by the [arrangement](https://github.com/saeedghsh/arrangement) package.
+
+To be documented soon
+---------------------
+- Setting Paramters
+- Scripts
+- NumPy vectorization VS. multi-processing, and handling memory issue
 
 
 License
