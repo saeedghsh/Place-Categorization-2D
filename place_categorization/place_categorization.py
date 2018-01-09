@@ -167,7 +167,6 @@ def raycast_bitmap(pose, image,
     theta_res:
     resolution of the the angle [step/deg] (default: 1))
 
-
     Output:
     -------
     t:
@@ -180,12 +179,10 @@ def raycast_bitmap(pose, image,
     shape=(theta_steps,) where: 
     theta_steps = np.int(theta_range *theta_res *360/(2*np.pi) )
     
-
     Note:
     -----
     It's a safe practice to set the parameters ones and use the same values
     for this method and the "construct_raycast_array" method.
-
 
     Note:
     -----
@@ -231,9 +228,8 @@ def raycast_bitmap(pose, image,
 
     ###### finding the values in the image, corresponding to each point
     # assuming rays_arr_xy is already type casted to int
-    rays_image_val = image[rays_arr_xy[1,:,:], rays_arr_xy[0,:,:]]
-    # rays_image_val = image[rays_arr_xy[1,:,:].astype(int),
-    #                        rays_arr_xy[0,:,:].astype(int)]
+    # rays_image_val = image[rays_arr_xy[1,:,:], rays_arr_xy[0,:,:]]
+    rays_image_val = image[rays_arr_xy[1,:,:].astype(int), rays_arr_xy[0,:,:].astype(int)]
 
     # making sure there is at least one occupied pixels per ray
     # it is set at the end, so it is equivalent to the range limit
@@ -255,9 +251,14 @@ def raycast_bitmap(pose, image,
     # r_idx = np.array([ np.nonzero(ray<=occupancy_thr)[0][0] for ray in rays_image_val ]).astype(float)
     
     # scaling (converting) range values from ray point index to distance in meter
-    r = r_idx * range_res * mpp
 
-    # to save memory, I type cast them here
+    # todo: this 
+    print ('WARNING: beware, something is not right here...')
+    print ('WARNING: r was multiplied with mpp, but I had to remove it for interactive raycasting for mesh to ogm')
+    print ('WARNING: I don\'t know how sould it be for ray casting and place cat')
+    r = r_idx * range_res #* mpp
+
+    # to save memory, I typecast them here
     return r.astype(np.float16), t.astype(np.float16)
     # return r, t
 

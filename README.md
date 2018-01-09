@@ -5,7 +5,7 @@ Semi-Supervised Place Categorization of Occupancy Grid Maps (OGM) In 2D
 This repository conatins a python implementation of place categorization method, explained in this paper ([link](http://ieeexplore.ieee.org/document/7324207/), [pdf](http://www.diva-portal.org/smash/get/diva2:850141/FULLTEXT01.pdf)):
 - Shahbandi, Saeed Gholami, Björn Åstrand, and Roland Philippsen. "Semi-supervised semantic labeling of adaptive cell decomposition maps in well-structured environments." Mobile Robots (ECMR), 2015 European Conference on. IEEE, 2015.  
 
-The feature set employed in this work is inspired by [link](http://ieeexplore.ieee.org/document/1570363/):
+The feature set employed in this work is inspired by ([link](http://ieeexplore.ieee.org/document/1570363/)):
 - Oscar Martinez Mozos "Semantic labeling of places with mobile robots" 2010, Springer Berlin Heidelberg.
 <!-- - Mozos, O. Martınez, Cyrill Stachniss, and Wolfram Burgard. "Supervised learning of places from range data using adaboost." Robotics and Automation, 2005. ICRA 2005. Proceedings of the 2005 IEEE International Conference on. IEEE, 2005. -->
 
@@ -27,7 +27,7 @@ Notes
 - This repository only contains the core method for place categorization, not the full method from the paper above.
   For instance:
 	* It is not adaptive to environment types, and paramters must be set according to input maps (e.g. resolution).
-	For a better performance, one need to tweak parameters of the clustering algorithm, manually (or adaptively).
+	For a better performance, one need to tweak parameters of the clustering algorithm manually (or adaptively).
 	* The decomposition of the 2D plane from the abovementioned paper ("Semi-supervised ...") is carried out by the [arrangement](https://github.com/saeedghsh/arrangement) package.
 
 To be documented soon
@@ -36,16 +36,24 @@ To be documented soon
 - Scripts
 - NumPy vectorization VS. multi-processing, and handling memory issue
 
-
 License
 -------
-Distributed with a GNU license; see LICENSE.
+Distributed with a GNU GENERAL PUBLIC LICENSE; see [LICENSE](https://github.com/saeedghsh/Place-Categorization-2D/blob/master/LICENSE).
 ```
-Copyright (C) Saeed Gholami Shahbandi <saeed.gh.sh@gmail.com>
+Copyright (C) Saeed Gholami Shahbandi
 ```
+
 
 <!-- Laundry List -->
 <!-- ------------ -->
+<!-- - [ ] X[14] is buggy! it includes division by zero.-->
+<!-- - [ ] resampling is not working well -->
+<!-- - [ ] do a comparison with old implementation, check the differences -->
+<!-- - [ ] batch clustering with DBSCAN, cluster subsets of pixels, then find the corresponding labels from each batch and associate. -->
+<!-- - [ ] alternative to multiprocessing, compromised vectorization: -->
+<!--   check the memory of the machine ([psutil](https://pypi.python.org/pypi/psutil)). -->
+<!--   find the appropriate batch size for each method according to the memory available. -->
+<!--   and then deploy each method in a batch, with determined size, in vectorized manner. -->
 <!-- - [x] `feature_testing.py` -->
 <!-- - numbers of gaps seems to be THE MOST RELEVANT AND DOMINANT features. the best result I get comes from that. -->
 <!-- - The first 8 features also works, but very noisy and sensitive -->
@@ -53,10 +61,8 @@ Copyright (C) Saeed Gholami Shahbandi <saeed.gh.sh@gmail.com>
 <!-- - PCA stuff (x3) of resampled also works with defferent result. -->
 <!--   resampled PCA stuff (x4) didn't work at all at first, -->
 <!--   Turned out the zero value of PCA in resampled version makes huge values in ratio feature, which in turn screws the clustering. -->
-<!-- - [ ] alternative to multiprocessing, compromised vectorization: -->
-<!--   check the memory of the machine ([psutil](https://pypi.python.org/pypi/psutil)). -->
-<!--   find the appropriate batch size for each method according to the memory available. -->
-<!--   and then deploy each method in a batch, with determined size, in vectorized manner. -->
+
+
 
 <!-- Paramters -->
 <!-- --------- -->
@@ -116,3 +122,5 @@ Copyright (C) Saeed Gholami Shahbandi <saeed.gh.sh@gmail.com>
 <!-- On laptop with 8Gb of RAM, I had to deployed the multiproccessing version of raycasting. -->
 <!-- But the feature extraction did work with vectorization. -->
 <!-- I suspect for big maps, even the feature extraction would run out memory and needs a batch version. -->
+
+<!-- see [this commit](https://github.com/saeedghsh/Place-Categorization-2D/commit/2c87c1c1a84795a25a3b4f7166c47b61150358f1) for old examples. -->
