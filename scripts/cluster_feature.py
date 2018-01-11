@@ -1,6 +1,6 @@
 '''
 Copyright (C) Saeed Gholami Shahbandi. All rights reserved.
-Author: Saeed Gholami Shahbandi (saeed.gh.sh@gmail.com)
+Author: Saeed Gholami Shahbandi
 
 This file is part of Arrangement Library.
 The of Arrangement Library is free software: you can redistribute it and/or
@@ -41,14 +41,14 @@ import scipy.misc
 ################################################################################
 def _lock_n_load(file_name, k_size=3):
     '''
-    '''    
+    '''
     image = np.flipud( cv2.imread( file_name, cv2.IMREAD_GRAYSCALE) )
 
     # converting to binary, for the layout-images
     thr1,thr2 = [127, 255]
     ret, image = cv2.threshold(image.astype(np.uint8) , thr1,thr2 , cv2.THRESH_BINARY)
 
-    # erode to make the ogm suitable for raycasting    
+    # erode to make the ogm suitable for raycasting
     kernel = np.ones((k_size,k_size),np.uint8)
     image = cv2.erode(image, kernel, iterations = 3)
     image = cv2.medianBlur(image, k_size)
@@ -107,7 +107,7 @@ if __name__ == '__main__':
 
     # fetching parameters from input arguments
     # parameters are marked with double dash,
-    # the value of a parameter is the next argument   
+    # the value of a parameter is the next argument
     listiterator = args[1:].__iter__()
     while 1:
         try:
@@ -115,24 +115,24 @@ if __name__ == '__main__':
             if item[:2] == '--':
                 exec(item[2:] + ' = next( listiterator )')
         except:
-            break   
+            break
 
     if 'image_name' not in locals(): raise( StandardError('at least give an image file name!') )
 
     visualize = True if 'visualize' in options else False
     save_to_file = True if 'save_to_file' in options else False
- 
+
     n_category = int(n_category) if 'n_category' in locals() else 2
     normalize = True if 'normalize' in options else False
 
-    
+
     if normalize:
         out_file_name = '.'.join( image_name.split('.')[:-1] ) + '_place_categories_{:d}_normalized.npy'.format(n_category)
     else:
         out_file_name = '.'.join( image_name.split('.')[:-1] ) + '_place_categories_{:d}.npy'.format(n_category)
 
     save_to_file = out_file_name if save_to_file==True else False
-    
+
     ### loading and processing image
     # image_name = '../map_sample/kpt4a_full.png'
     image = _lock_n_load(image_name, k_size=3)
@@ -141,7 +141,7 @@ if __name__ == '__main__':
     # raycasts_name = '.'.join( image_name.split('.')[:-1] ) + '_raycasts.npy'
     feature_name = '.'.join( image_name.split('.')[:-1] ) + '_features.npy'
     features = np.atleast_1d( np.load(feature_name) )[0]
-    
+
     open_cells = features['open_cells']
     X = features['features']
 
@@ -149,7 +149,7 @@ if __name__ == '__main__':
     # print (np.any(np.isnan(X)), np.any(np.isinf(X)))
     X = np.where(np.logical_or(np.isnan(X), np.isinf(X)), 1, X  )
     # X = np.where(np.logical_or(np.isnan(X), np.isinf(X)), 0, X )
-        
+
     ### Normalizing
     if normalize:
         print ('\t *********** normalizing features ***********')
@@ -178,7 +178,3 @@ if __name__ == '__main__':
     label_image[open_cells[:,1],open_cells[:,0]] = labels
 
     _visualize_save(label_image, visualize, save_to_file)
-
-
-
-

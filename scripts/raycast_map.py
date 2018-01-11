@@ -1,6 +1,6 @@
 '''
 Copyright (C) Saeed Gholami Shahbandi. All rights reserved.
-Author: Saeed Gholami Shahbandi (saeed.gh.sh@gmail.com)
+Author: Saeed Gholami Shahbandi
 
 This file is part of Arrangement Library.
 The of Arrangement Library is free software: you can redistribute it and/or
@@ -38,14 +38,14 @@ import place_categorization.place_categorization as plcat
 ################################################################################
 def lock_n_load(file_name, occupancy_thr=220, k_size=3):
     '''
-    '''    
+    '''
     image = np.flipud( cv2.imread( file_name, cv2.IMREAD_GRAYSCALE) )
 
     # converting to binary, for the layout-images
     thr1,thr2 = [occupancy_thr, 255]
     ret, image = cv2.threshold(image.astype(np.uint8) , thr1,thr2 , cv2.THRESH_BINARY)
 
-    # erode to make the ogm suitable for raycasting    
+    # erode to make the ogm suitable for raycasting
     kernel = np.ones((k_size,k_size),np.uint8)
     image = cv2.erode(image, kernel, iterations = 3)
     image = cv2.medianBlur(image, k_size)
@@ -63,7 +63,7 @@ if __name__ == '__main__':
 
     # fetching parameters from input arguments
     # parameters are marked with double dash,
-    # the value of a parameter is the next argument   
+    # the value of a parameter is the next argument
     listiterator = args[1:].__iter__()
     while 1:
         try:
@@ -71,10 +71,10 @@ if __name__ == '__main__':
             if item[:2] == '--':
                 exec(item[2:] + ' = next( listiterator )')
         except:
-            break   
+            break
 
     ### raycasting parameters
-    # NOTE: metric resolution of raycast (~accuracy) is range_res*mpp, e.g range_res=5, mpp=.02 -> 0.1m 
+    # NOTE: metric resolution of raycast (~accuracy) is range_res*mpp, e.g range_res=5, mpp=.02 -> 0.1m
     raycast_config = {
         'mpp': 0.02, # meter per pixel
         'range_meter': 4, # meter
@@ -84,7 +84,7 @@ if __name__ == '__main__':
         'occupancy_thr': 220,
     }
     raycast_config['length_range'] = raycast_config['range_meter'] // raycast_config['mpp'] # in pixels
-    raycast_config['length_steps'] = raycast_config['length_range'] // raycast_config['range_res'] # 
+    raycast_config['length_steps'] = raycast_config['length_range'] // raycast_config['range_res'] #
 
     ### loading and processing image
     # image_name = '../map_sample/test.png'
@@ -96,7 +96,7 @@ if __name__ == '__main__':
                                           raycast_config['length_steps'],
                                           raycast_config['theta_range'],
                                           raycast_config['theta_res'] )
-    
+
     ### finding free space (unoccupied pixels) from which to raycast
     open_cells = np.transpose(np.nonzero(image>raycast_config['occupancy_thr'])) # [(row, col),..]
     open_cells = np.roll(open_cells, 1, axis=1) # [(col, row),..]
@@ -122,7 +122,7 @@ if __name__ == '__main__':
                                  theta_range=raycast_config['theta_range'],
                                  theta_res=raycast_config['theta_res'],
                                  rays_array_xy=raxy)
-    
+
     ### raycasting with multi-processing
     multiprocessing = mp.cpu_count()
     tic = time.time()
@@ -155,5 +155,3 @@ if __name__ == '__main__':
     #                     raycasts['config'],
     #                     raycasts['range_vecs'][idx,:],
     #                     raycasts['theta_vecs'])
-
-

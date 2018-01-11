@@ -1,6 +1,6 @@
 '''
 Copyright (C) Saeed Gholami Shahbandi. All rights reserved.
-Author: Saeed Gholami Shahbandi (saeed.gh.sh@gmail.com)
+Author: Saeed Gholami Shahbandi
 
 This file is part of Arrangement Library.
 The of Arrangement Library is free software: you can redistribute it and/or
@@ -21,7 +21,7 @@ import numpy as np
 ################################################################################
 def construct_raycast_array(pose=[0,0],
                             length_range=30,
-                            length_steps=30, 
+                            length_steps=30,
                             theta_range=2*np.pi,
                             theta_res=1/1):
     '''
@@ -32,7 +32,7 @@ def construct_raycast_array(pose=[0,0],
     in raycast_bitmap method, but this is as much time consuming as the raycast
     itself. By providing a template and making a copy of it in raycast_bitmap
     method, the speed would improve almost two-fold.
-    
+
     Input:
     ------
     pose: the location of the sensor [x,y] (default: [0,0])
@@ -43,7 +43,7 @@ def construct_raycast_array(pose=[0,0],
     length_steps: number of steps in every ray (default: same as length_range)
     theta_range: the field of view of scanner in radian (default: 2pi)
     theta_res: resolution of the the angle [step/deg] (default: 1))
-    
+
     Output:
     -------
     rays_array_xy: a 3d array of coordinated of all point for raycast
@@ -103,7 +103,7 @@ def construct_raycast_array(pose=[0,0],
     # rays_t.shape:(theta_range, lngth_range)
     # ->[[0., 0., ..., 0.], ..., [2pi, 2ip, ..., 2pi]]
 
-    # computing the coordinate of points 
+    # computing the coordinate of points
     rays_array_xy = np.stack((rays_l, rays_l), axis=0)
     rays_array_xy *= np.stack((np.cos(rays_t), np.sin(rays_t)), axis=0)
     # if np.__version__ <= 1.10.0:
@@ -113,10 +113,10 @@ def construct_raycast_array(pose=[0,0],
     #                                                           np.sin(rays_t)),
     #                                                          axis=0), 2))
 
-    # adjusting the points' coordinate wrt the pose 
+    # adjusting the points' coordinate wrt the pose
     rays_array_xy[0,:,:] += pose[0]
     rays_array_xy[1,:,:] += pose[1]
-    
+
     return rays_array_xy
 
 ################################################################################
@@ -137,10 +137,10 @@ def raycast_bitmap(pose, image,
     image:
     An occupancy grid map (bitmap image), where the value of open cells is
     max (255), and min (0) for occupied cells.
-    
+
     pose:
     the location the sensor [x,y]
-    
+
     rays_array_xy:
     see the output of "construct_raycast_array" for more details
 
@@ -171,14 +171,14 @@ def raycast_bitmap(pose, image,
     -------
     t:
     this array stores the value for the angle of each ray
-    shape=(theta_steps,) where: 
+    shape=(theta_steps,) where:
     theta_steps = np.int(theta_range *theta_res *360/(2*np.pi) )
 
     r:
     distance to the first occupied cell in ray
-    shape=(theta_steps,) where: 
+    shape=(theta_steps,) where:
     theta_steps = np.int(theta_range *theta_res *360/(2*np.pi) )
-    
+
     Note:
     -----
     It's a safe practice to set the parameters ones and use the same values
@@ -192,17 +192,17 @@ def raycast_bitmap(pose, image,
     this method construct it inside, which will take into account the heading.
     '''
 
-    if not(0<=pose[0]<image.shape[1]) or not(0<=pose[1]<image.shape[0]):        
+    if not(0<=pose[0]<image.shape[1]) or not(0<=pose[1]<image.shape[0]):
         # print ( image.shape, pose )
         raise Exception('pose is out of map')
- 
+
     if rays_array_xy is None:
         # if the rays array is not provided, construct one
         rays_arr_xy = construct_raycast_array(pose,
-                                              length_range, length_steps, 
+                                              length_range, length_steps,
                                               theta_range, theta_res)
     else:
-        # if the rays array is provided, adjust the location        
+        # if the rays array is provided, adjust the location
         rays_arr_xy = rays_array_xy.copy()
         # moving rays_array wrt new pose
         rays_arr_xy[0,:,:] += pose[0]
@@ -237,7 +237,7 @@ def raycast_bitmap(pose, image,
 
     theta_steps = np.int(theta_range *theta_res *360/(2*np.pi) )
     t = np.linspace(0, theta_range, theta_steps, endpoint=False)
-    
+
     # new way ~ 2.5715110302 Second for 1000 raycast
     # nonzero only returns the indices to entries that satisfy the condition
     # this means t_idx is not uniform, different angles (rays) have different nubmer of nonzeros
@@ -249,10 +249,10 @@ def raycast_bitmap(pose, image,
     r_idx = np.concatenate((np.atleast_1d(r_idx[0]), r_idx[np.nonzero(np.diff(t_idx)!=0)[0]+1]))
     # old way ~3.64616513252 Second for 1000 raycast
     # r_idx = np.array([ np.nonzero(ray<=occupancy_thr)[0][0] for ray in rays_image_val ]).astype(float)
-    
+
     # scaling (converting) range values from ray point index to distance in meter
 
-    # todo: this 
+    # todo: this
     print ('WARNING: beware, something is not right here...')
     print ('WARNING: r was multiplied with mpp, but I had to remove it for interactive raycasting for mesh to ogm')
     print ('WARNING: I don\'t know how sould it be for ray casting and place cat')
@@ -270,7 +270,7 @@ def feature_subset(R,t, raycast_config, gap_t, point_closeness_thr=0.5):
     ------
     t: 1darray (1xn)
     n is the is the number of rays in each raycast, or the number of angles
-    
+
     R: 2darray (mxn)
     m is the number of open_cells and hence the number of raycast vectors
     n is the number of rays in each raycast (i.e. the length of theta vector)
@@ -336,16 +336,16 @@ def feature_subset(R,t, raycast_config, gap_t, point_closeness_thr=0.5):
     del RR, T, CS
     ########################################
     ### Area of P(z)
-    A21 = np.atleast_2d( np.sum( X*np.roll(Y,-1,axis=1) - np.roll(X,-1,axis=1)*Y, axis=1) /2. ).T     
+    A21 = np.atleast_2d( np.sum( X*np.roll(Y,-1,axis=1) - np.roll(X,-1,axis=1)*Y, axis=1) /2. ).T
     del X,Y
 
     ########################################
     # PD: the distance between consecutive points in each point set (minus the first to last point distance)
-    PD = np.sqrt(np.diff(XY[:,:,0],axis=1)**2 + np.diff(XY[:,:,1],axis=1)**2) 
+    PD = np.sqrt(np.diff(XY[:,:,0],axis=1)**2 + np.diff(XY[:,:,1],axis=1)**2)
     ### Perimeter of P(z)
     A22 = np.atleast_2d( np.sum(PD, axis=1) ).T
     del PD
-    ### 
+    ###
     C = A22**2 / A21
 
     ###### counting gaps - A17
@@ -365,7 +365,7 @@ def feature_subset(R,t, raycast_config, gap_t, point_closeness_thr=0.5):
     A116 = np.atleast_2d( np.where(np.isnan(A116), np.zeros(A116.shape[0]), A116  ) ).T
     del A15, A16
 
-    ###### Of the ORIGINAL point set: PCA, the bias of center of gravity, etc. 
+    ###### Of the ORIGINAL point set: PCA, the bias of center of gravity, etc.
     # Compute the center of gravity = center of the gaussian
     Center_of_Gravity = XY.mean(axis=1)
     # Translate the distribution to center its CoG at origin of the
@@ -375,13 +375,13 @@ def feature_subset(R,t, raycast_config, gap_t, point_closeness_thr=0.5):
     del XY_centered
 
     ### principle components
-    PCA = S/ np.sqrt(XY.shape[1]) 
+    PCA = S/ np.sqrt(XY.shape[1])
     del S #, XY
 
     ### ratio between principle components
     RAT = np.atleast_2d(PCA[:,0]/PCA[:,1]).T
     ### the bias of the center
-    BIA = np.atleast_2d( np.sqrt(Center_of_Gravity[:,0]**2+Center_of_Gravity[:,1]**2)).T 
+    BIA = np.atleast_2d( np.sqrt(Center_of_Gravity[:,0]**2+Center_of_Gravity[:,1]**2)).T
     del Center_of_Gravity
 
 
@@ -411,17 +411,17 @@ def feature_subset(R,t, raycast_config, gap_t, point_closeness_thr=0.5):
     # Translate the distribution to center its CoG at origin of the
     XY_centered_ma = XY_ma - np.stack([Center_of_Gravity_ma for _ in range(XY_ma.shape[1])], axis=1)
     del XY_ma
-    
+
     # Compute the singular value decomposition (Note: np.linalg does not accept float16)
     # The problem is here! I can't get it right :(
     XY_centered_ma.fill_value = 0
     S_ma = np.linalg.svd(XY_centered_ma.filled().astype(np.float32), full_matrices=False,compute_uv=False)
     # np.array([ np.linalg.svd( np.ma.compress_rowcols(XY_ma[idx,:,:], axis=0).T,
     #                           full_matrices=False, compute_uv=False )
-    #            for idx in range(XY_ma.shape[0]) ]) 
+    #            for idx in range(XY_ma.shape[0]) ])
 
     ### principle components
-    PCA_ma = S_ma/ np.sqrt( XY_centered_ma.count(axis=1) ) # np.sqrt(XY_ma.shape[1]) 
+    PCA_ma = S_ma/ np.sqrt( XY_centered_ma.count(axis=1) ) # np.sqrt(XY_ma.shape[1])
     del S_ma, XY_centered_ma
 
     ### ratio between principle components
@@ -450,7 +450,7 @@ def feature_set_A1(R, t, raycast_config, gap_t, rel_gap_t):
     ------
     t: 1darray (1xn)
     n is the is the number of rays in each raycast, or the number of angles
-    
+
     R: 2darray (mxn)
     m is the number of open_cells and hence the number of raycast vectors
     n is the number of rays in each raycast (i.e. the length of theta vector)
@@ -459,10 +459,10 @@ def feature_set_A1(R, t, raycast_config, gap_t, rel_gap_t):
     ---------
     gap_t: list
     gap threshold (if di-dj > gap_t[k])
-   
+
     rel_gap_t: scaler (0,1)
     relateive gap threshold (if di/dj > gap_t[k])
-    
+
     Output
     ------
     F: 2darray (mxl)
@@ -486,13 +486,13 @@ def feature_set_A1(R, t, raycast_config, gap_t, rel_gap_t):
     # like: scipy.stats.describe
 
     assert R.ndim == 2
-    
+
     diff = np.abs( np.diff(R, axis=1) )
     # Average Difference Between the Length of Two Consecutive Beams
     A11 = np.atleast_2d( diff.mean(axis=1) ).T
     # Standard Deviation of the Difference Between the Length of Two Consecutive Beams
     A12 = np.atleast_2d( diff.std(axis=1) ).T
-    
+
     # Number of Gaps
     A17 = np.concatenate( [ np.atleast_2d( np.count_nonzero(diff>gt, axis=1) ).T
                             for gt in gap_t ],
@@ -527,7 +527,7 @@ def feature_set_A1(R, t, raycast_config, gap_t, rel_gap_t):
     # minima = utilities.find_minima_along_axis(S, window_size)
     # T_diff = [ np.diff( t[m_idx] ) for m_idx in minima ]
     # A19a = np.atleast_2d( [T_diff[idx].mean() for idx in range(R.shape[0])] ).T
-    # A19b = np.atleast_2d( [T_diff[idx].std() for idx in range(R.shape[0])] ).T 
+    # A19b = np.atleast_2d( [T_diff[idx].std() for idx in range(R.shape[0])] ).T
 
     rel = R / (np.roll(R, 1, axis=1)+np.spacing(1)) # np.spacing helps avoiding division by zero
     # In the following line the 1./rel might encounter division by zero, but it should matter
@@ -553,8 +553,8 @@ def feature_set_A1(R, t, raycast_config, gap_t, rel_gap_t):
     # Kurtosis
     # A16 should be indexed to its only column, otherwise it will be 2d and
     # the result of division will become a matrix instead of a vector
-    A116 = np.atleast_2d( (np.sum((R-A15)**4,axis=1) / (R.shape[1]*A16[:,0]**4)) - 3 ).T 
-    
+    A116 = np.atleast_2d( (np.sum((R-A15)**4,axis=1) / (R.shape[1]*A16[:,0]**4)) - 3 ).T
+
     F = np.concatenate( (A11,A12, A15,A16, A111,A112, A113,A114, A115, A116, A17),
                         axis=1)
 
@@ -575,11 +575,11 @@ def feature_set_A2(R,t, EFD_degree=10):
     ------
     t: 1darray (1xn)
     n is the is the number of rays in each raycast, or the number of angles
-    
+
     R: 2darray (mxn)
     m is the number of open_cells and hence the number of raycast vectors
     n is the number of rays in each raycast (i.e. the length of theta vector)
-   
+
     Output
     ------
     F: 2darray (mxl)
@@ -612,12 +612,12 @@ def feature_set_A2(R,t, EFD_degree=10):
     X = XY[:,:,0]
     Y = XY[:,:,1]
     ### Area of P(z)
-    A21 = np.atleast_2d( np.sum( X*np.roll(Y,-1,axis=1) - np.roll(X,-1,axis=1)*Y, axis=1) /2. ).T     
+    A21 = np.atleast_2d( np.sum( X*np.roll(Y,-1,axis=1) - np.roll(X,-1,axis=1)*Y, axis=1) /2. ).T
     # leave R, A21, XY, X, Y
 
     ########################################
     # PD: the distance between consecutive points in each point set (minus the first to last point distance)
-    PD = np.sqrt(np.diff(XY[:,:,0],axis=1)**2 + np.diff(XY[:,:,1],axis=1)**2) 
+    PD = np.sqrt(np.diff(XY[:,:,0],axis=1)**2 + np.diff(XY[:,:,1],axis=1)**2)
     ### Perimeter of P(z)
     A22 = np.atleast_2d( np.sum(PD, axis=1) ).T
     del PD # leave R, A21, A22, XY, X, Y
@@ -629,22 +629,22 @@ def feature_set_A2(R,t, EFD_degree=10):
     Cx = np.sum( (X+np.roll(X,-1,axis=1)) * tmp, axis=1) / (A21 *6)[:,0]
     Cy = np.sum( (Y+np.roll(Y,-1,axis=1)) * tmp, axis=1) / (A21 *6)[:,0]
     # C: 2d array containg the coordinates (x,y) of centroids
-    C = np.stack( (Cx,Cy), axis=1) 
+    C = np.stack( (Cx,Cy), axis=1)
     # CX, CY: 2d arrays, that are stacked version of Cx and Cy
     CX = np.stack( [C[:,0] for _ in range(R.shape[1])], axis=1)
     CY = np.stack( [C[:,1] for _ in range(R.shape[1])], axis=1)
     # CD: 2d array, distance of every points in each point set to the centroid of that set
-    CD = np.sqrt( (X - CX)**2 + (Y - CY)**2 ) 
+    CD = np.sqrt( (X - CX)**2 + (Y - CY)**2 )
     del tmp, Cx, Cy, CX, CY # leave R, A21, A22, XY, X, Y, C, CD
 
     # Mean Distance Between the Centroid and the Shape Boundary
-    A23 = np.atleast_2d( CD.mean(axis=1) ).T 
+    A23 = np.atleast_2d( CD.mean(axis=1) ).T
     # Standard Deviation of the Distances Between the Centroid and the Shape Boundary
-    A24 = np.atleast_2d( CD.std(axis=1) ).T 
+    A24 = np.atleast_2d( CD.std(axis=1) ).T
 
     ########################################
     # Average Normalized Distance Between the Centroid and the Shape Boundary
-    A214 = np.atleast_2d( A23[:,0] / CD.max(axis=1) ).T 
+    A214 = np.atleast_2d( A23[:,0] / CD.max(axis=1) ).T
     # Standard Deviation of the Normalized Distances Between the Centroid and the Shape Boundary
     A215 = np.atleast_2d( A24[:,0] / CD.max(axis=1) ).T
     del CD # leave R, A21, A22, A23, A24, XY, X, Y, C
@@ -671,12 +671,12 @@ def feature_set_A2(R,t, EFD_degree=10):
     # EFD values are complex and I take their absolute value to match other features' type
     # not sure if this is correct!
     A25 = np.abs( EFD )
-    del CMPX, idx_s, idx_e, idx, angl, phi_1, phi_2, abs_1, FFT, EFD 
+    del CMPX, idx_s, idx_e, idx, angl, phi_1, phi_2, abs_1, FFT, EFD
 
     # Major Axis Ma of the Ellipse that Approximates P(z)
-    A26 = np.atleast_2d( absl[:,1]+absl[:,-1] ).T 
+    A26 = np.atleast_2d( absl[:,1]+absl[:,-1] ).T
     # Minor Axis Mi of the Ellipse that Approximates P(z)
-    A27 = np.atleast_2d( np.abs(absl[:,1]-absl[:,-1]) ).T  
+    A27 = np.atleast_2d( np.abs(absl[:,1]-absl[:,-1]) ).T
     del absl # leave R, A21,A22,A23,A24,A25,A26,A27, XY, X, Y, C
 
     ########################################
@@ -686,7 +686,7 @@ def feature_set_A2(R,t, EFD_degree=10):
     dX = X - np.stack([Xh for _ in range(X.shape[1])], axis=1)
     dY = Y - np.stack([Yh for _ in range(Y.shape[1])], axis=1)
     del Xh, Yh
-    
+
     # since this is a point set, there is one summation over points
     # rather two summation over rows and columns (x,y) as for images
     # also points have equal value, so there is not f(x,y) to multiply
@@ -702,7 +702,7 @@ def feature_set_A2(R,t, EFD_degree=10):
     ETA_21 = ETA(2,1)
     ETA_30 = ETA(3,0)
     ETA_03 = ETA(0,3)
-    
+
     PHI_1 = ETA_20 + ETA_02
     PHI_2 = (ETA_20 - ETA_02)**2 + 4* ETA_11**2
     PHI_3 = (ETA_30 - 3*ETA_12)**2 + (3*ETA_21 - ETA_03)**2
@@ -738,7 +738,7 @@ def feature_set_A2(R,t, EFD_degree=10):
     # Form Factor of P(z)
     A211 = np.atleast_2d( 4 * np.pi * A21[:,0] / np.sqrt(A22[:,0]) ).T
     # Circularity of P(z)
-    A212 = np.atleast_2d( A22[:,0]**2 / A21[:,0] ).T 
+    A212 = np.atleast_2d( A22[:,0]**2 / A21[:,0] ).T
     # Normalized Circularity of P(z)
     A213 = np.atleast_2d( 4 * np.pi * A21[:,0] / A22[:,0]**2 ).T
 
@@ -775,9 +775,9 @@ def raycast_bitmap_batch(open_cells, image,
     image:
     An occupancy grid map (bitmap image), where the value of open cells is
     max (255), and min (0) for occupied cells.
-    
+
     open_cells
-    
+
     rays_array_xy:
     see the output of "construct_raycast_array" for more details
 
@@ -809,9 +809,9 @@ def raycast_bitmap_batch(open_cells, image,
     -------
     t:
     this array stores the value for the angle of each ray
-    shape=(theta_steps,) where: 
+    shape=(theta_steps,) where:
     theta_steps = np.int(theta_range *theta_res *360/(2*np.pi) )
-    
+
 
     Note:
     -----
@@ -830,8 +830,8 @@ def raycast_bitmap_batch(open_cells, image,
     all_inside = all_inside & np.all(0<=open_cells[:,0]) & np.all(open_cells[:,0]<image.shape[1])
     all_inside = all_inside & np.all(0<=open_cells[:,1]) & np.all(open_cells[:,1]<image.shape[0])
     if not all_inside: raise Exception('open cells out of image!!!')
- 
-    # stack the ray array 
+
+    # stack the ray array
     rays_arr_xy = np.stack([rays_array_xy for _ in range(open_cells.shape[0])], axis=0)
 
     # adjust the location
@@ -897,7 +897,7 @@ def fit_with_gaussian(data):
     --------
     FitGaussian.mean      (1xD) numpy.ndarray representing center of the distribution (ie. estimated gaussian).
     FitGaussian.stddev    (1xD) numpy.ndarray representing standard deviation of the distribution in direction of PCAs.
-    FitGaussian.rotation  (DxD) numpy.ndarray representing the orientation of estimated gaussian.    
+    FitGaussian.rotation  (DxD) numpy.ndarray representing the orientation of estimated gaussian.
     '''
 
     N = data.shape[0]
@@ -906,17 +906,17 @@ def fit_with_gaussian(data):
     # Compute the center of gravity = center of the gaussian
     mean = np.mean(data,0)
 
-    # Translate the distribution to center its CoG at origin of the 
+    # Translate the distribution to center its CoG at origin of the
     zero_mean_data = np.float64(data.copy())
     for i in range(Dimension):
         zero_mean_data[:,i] -= mean[i]
-        
+
     # Compute the singular value decomposition
     U,S,V = np.linalg.svd(zero_mean_data)
-        
+
     stddev = S / np.sqrt(N)
     rot = V
-            
+
     return mean, stddev, rot
 
 ################################################################################
@@ -935,14 +935,14 @@ def raycast_to_features(t,r,
     -------
     t:
     r:
-    
+
     Parameters:
     -----------
     mpp: meter per pixel
     RLimit:
     gapThreshold:
     default: [1.0]
-    
+
     Output:
     -------
 
@@ -967,12 +967,12 @@ def raycast_to_features(t,r,
     [2] R.M. Haralick and L.G. Shapiro. Computer and Robot Vision. Addison-Wesley Publishing Inc., 1992.
     [3] S. Loncaric. A survey of shape analysis techniques. Pattern Recognition,31(8), 1998.
     [4] R.C. Gonzalez and P. Wintz. Digital Image Processing. Addison-Wesley Publishing Inc., 1987.
-    '''    
+    '''
     f = [] # the problem is the dynamic number of gaps np.zeros(17)
     # [ r_mean_norm,
     #   r_stdv_norm,
     #   diff_mean_norm,
-    #   diff_stdv_norm,    
+    #   diff_stdv_norm,
     #   A, P, C,
     #   [gap_count]
     #   kurtosis,
@@ -983,7 +983,7 @@ def raycast_to_features(t,r,
     #   svdStddev[0]/svdStddev[1]
     #   np.sqrt(svdMean[0]**2+svdMean[1]**2)
     # ]
-    
+
 
     ###### normalized mean and std of ranges - A15, A16
     r_mean = np.mean(r)
@@ -998,8 +998,8 @@ def raycast_to_features(t,r,
     diff_mean_norm = diff_mean / RLimit
     diff_stdv_norm = diff_stdv / RLimit
     f.append(diff_mean_norm), f.append(diff_stdv_norm)
-    
-    ###### 
+
+    ######
     dt = t[1]-t[0]
     # p = np.zeros(len(r))
     # a = np.zeros(len(r))
@@ -1008,7 +1008,7 @@ def raycast_to_features(t,r,
     #     r3,r4 = r1*np.sin(dt), r1*np.cos(dt)
     #     p[i] = np.sqrt(r3**2 + (r2-r4)**2)
     #     a[i] = r2*r3/2.0
-    p = np.sqrt((np.roll(r,1)*np.sin(dt))**2 + (r-np.roll(r,1)*np.cos(dt))**2)    
+    p = np.sqrt((np.roll(r,1)*np.sin(dt))**2 + (r-np.roll(r,1)*np.cos(dt))**2)
     a = r *np.roll(r,1) *np.sin(dt) /2.0
 
     A = np.sum(a)
@@ -1020,14 +1020,14 @@ def raycast_to_features(t,r,
     for gt in gapThreshold:
         gap_count = len(np.nonzero(np.abs(np.diff(r))>gt)[0])
         f.append(gap_count)
-    
+
     ###### the kurtosis - A116
     if np.abs(r_stdv) < np.spacing(10**10):
         f.append( 0 )
     else:
         kurtosis = np.sum((r - r_mean)**4) / (len(r)*r_stdv**4) #-3
         f.append(kurtosis)
-        
+
     ###### conversion of raycasts  ######
     ###### from polar to cartesian ######
     endpoints =  (1/mpp) * np.array( [r*np.cos(t), r*np.sin(t)] ).T
@@ -1035,17 +1035,17 @@ def raycast_to_features(t,r,
     # resampling the endpoints - rejecting close points
     # dis_mat = get_distance_matrix(endpoints)
     # pts_idx = np.arange(endpoints.shape[0])
-    # dis_mat[pts_idx,pts_idx] = dis_mat.max(axis=0)    
+    # dis_mat[pts_idx,pts_idx] = dis_mat.max(axis=0)
     endpoints_resampled = list(endpoints)
     for i in range(len(endpoints)-1,0,-1):
         p1,p2, = endpoints_resampled[i],endpoints_resampled[i-1]
         if np.sqrt( (p1[0]-p2[0])**2 + (p1[1]-p2[1])**2  ) < 0.5:#(1.0*mpp):
-            endpoints_resampled.pop(i)        
+            endpoints_resampled.pop(i)
     endpoints_resampled = np.array(endpoints_resampled)
     #####################################
     #####################################
-    
-    ###### parameters of the gaussian model of the endpoints 
+
+    ###### parameters of the gaussian model of the endpoints
     svdMean, svdStddev, svdRot = fit_with_gaussian(endpoints)
     if len( svdStddev ) == 2:
         f.extend( svdStddev ) # principle components
@@ -1053,7 +1053,7 @@ def raycast_to_features(t,r,
         f.append( np.sqrt(svdMean[0]**2+svdMean[1]**2) ) # the bias of the center
     else:
         f.extend( [0,0,0,0] )
-    ###### parameters of the gaussian model of the resampled_endpoints 
+    ###### parameters of the gaussian model of the resampled_endpoints
     svdMean, svdStddev, svdRot = fit_with_gaussian(endpoints_resampled)
     if len( svdStddev ) == 2:
         f.extend( svdStddev ) # principle components
@@ -1083,7 +1083,7 @@ def features_extraction(row_col,
     This method takes the pose (row,col), an image and some other pameters,
     returns the feature descriptor for that pose. It's binds together the
     following methods:
-    raycast_bitmap    
+    raycast_bitmap
     raycast_to_features
 
     It will become partial, for the purpose of multi-processing.
@@ -1093,7 +1093,7 @@ def features_extraction(row_col,
                          image,
                          occupancy_thr,
                          length_range,
-                         length_steps, 
+                         length_steps,
                          theta_range,
                          theta_res,
                          rays_array_xy)
@@ -1102,7 +1102,7 @@ def features_extraction(row_col,
                                    mpp,
                                    range_meter,
                                    gapThreshold)
-    
+
     return features
 
 
@@ -1114,7 +1114,7 @@ def features_extraction(row_col,
 # ################################################################################
 # def raycast_pointcloud(pointcloud, pose,
 #                        dist_thr,
-#                        length_range, length_steps, 
+#                        length_range, length_steps,
 #                        theta_range, theta_res,
 #                        rays_array_xy=None):
 #     '''
@@ -1123,7 +1123,7 @@ def features_extraction(row_col,
 #     Input:
 #     ------
 #     pointcloud:
-    
+
 #     pose:
 #     the location of the sensor [x,y]
 
@@ -1134,7 +1134,7 @@ def features_extraction(row_col,
 #     Parameters:
 #     -----------
 #     dist_thr:
-#     if the distance between a point in  raycast and a point from pointcloud is 
+#     if the distance between a point in  raycast and a point from pointcloud is
 #     less than this threshold, the point is considered occupided
 
 
@@ -1142,14 +1142,14 @@ def features_extraction(row_col,
 #     -------
 #     t:
 #     this array stores the value for the angle of each ray
-#     shape=(theta_steps,) where: 
+#     shape=(theta_steps,) where:
 #     theta_steps = np.int(theta_range *theta_res *360/(2*np.pi) )
 
 #     r:
 #     distance to the first occupied cell in ray
-#     shape=(theta_steps,) where: 
+#     shape=(theta_steps,) where:
 #     theta_steps = np.int(theta_range *theta_res *360/(2*np.pi) )
-    
+
 
 #     Note:
 #     -----
@@ -1163,14 +1163,14 @@ def features_extraction(row_col,
 #     If the heading is not zero, don't provide the "rays_array_xy" and let
 #     this method construct it inside, which will take into account the heading.
 #     '''
- 
+
 #     if rays_array_xy is None:
 #         # if the rays array is not provided, construct one
 #         rays_arr_xy = construct_raycast_array(pose,
-#                                               length_range, length_steps, 
+#                                               length_range, length_steps,
 #                                               theta_range, theta_res)
 #     else:
-#         # if the rays array is provided, adjust the location        
+#         # if the rays array is provided, adjust the location
 #         rays_arr_xy = rays_array_xy.copy()
 #         # moving rays_array wrt new pose
 #         rays_arr_xy[0,:,:] += pose[0]
@@ -1180,23 +1180,23 @@ def features_extraction(row_col,
 #     # finding the min distance between raycasts and pointcloud
 #     x_ = rays_array_xy[0,:,:].flatten()
 #     y_ = rays_array_xy[1,:,:].flatten()
-#     rc = np.stack( (x_, y_), axis=1)    
+#     rc = np.stack( (x_, y_), axis=1)
 
 #     dist = scipy.spatial.distance.cdist(rc, pointcloud, 'euclidean') # shape = (rc x pointcloud)
 #     dist = np.min(dist, axis=1)
 #     dist = dist.reshape( rays_array_xy[0,:,:].shape )
-#     dist = np.where (dist< dist_thr, True, False) 
+#     dist = np.where (dist< dist_thr, True, False)
 #     # TODO: find the first True value along the axis=1
 #     # note: each row is a different angle, and along columns the range increases
 
 
-#     # constructing the template for the output 
+#     # constructing the template for the output
 #     theta_steps = np.int(theta_range *theta_res *360/(2*np.pi) )
 #     t = np.linspace(0, theta_range, theta_steps, endpoint=False)
 #     r = length_range * np.ones(rays_arr_xy.shape[1])
-    
-#     # updating the range vector  
-#     # TODO: 
+
+#     # updating the range vector
+#     # TODO:
 
 #     return r,t
 

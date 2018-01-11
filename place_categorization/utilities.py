@@ -1,6 +1,6 @@
 '''
 Copyright (C) Saeed Gholami Shahbandi. All rights reserved.
-Author: Saeed Gholami Shahbandi (saeed.gh.sh@gmail.com)
+Author: Saeed Gholami Shahbandi
 
 This file is part of Arrangement Library.
 The of Arrangement Library is free software: you can redistribute it and/or
@@ -25,32 +25,32 @@ def smooth(x, window_size=11, window='hanning'):
     '''
     smooth the data using a window with requested size.
     http://scipy-cookbook.readthedocs.io/items/SignalSmooth.html
-    
+
     This method is based on the convolution of a scaled window with the signal.
-    The signal is prepared by introducing reflected copies of the signal 
+    The signal is prepared by introducing reflected copies of the signal
     (with the window size) in both ends so that transient parts are minimized
     in the begining and end part of the output signal.
-    
+
     input:
-        x: the input signal 
+        x: the input signal
         window_size: the len of the smoothing window; should be an odd integer
         window: the type of window from 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'
             flat window will produce a moving average smoothing.
 
     output:
         the smoothed signal
-        
+
     example:
 
     t=linspace(-2,2,0.1)
     x=sin(t)+randn(len(t))*0.1
     y=smooth(x)
-    
-    see also: 
-    
+
+    see also:
+
     numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
     scipy.signal.lfilter
- 
+
     TODO: the window parameter could be the window itself if an array instead of a string
     NOTE: length(output) != length(input), to correct this: return y[(window_len/2-1):-(window_len/2)] instead of just y.
     '''
@@ -127,7 +127,7 @@ def find_minima(x, window_size=10):
     # detect plateau by finding close minima and average their location
     split_points = np.r_[0, np.nonzero( np.diff(peak_idx)> window_size )[0], peak_idx.shape[0]]
 
-    
+
     # TODO: this first zero entry is very fishy!
     # as a matter of fact I know there are cases with two zeros at the begining
     # but that shouldn't be a problem though, since array[0:0] is empty!
@@ -135,10 +135,10 @@ def find_minima(x, window_size=10):
     # if split_points[idx+1]- split_points[idx]>0])
 
     if split_points[0] == split_points[1]: split_points = split_points[1:]
-    
+
     peak_idx = np.array([ int(peak_idx[split_points[idx]:split_points[idx+1]].mean())
                           for idx in range(split_points.shape[0]-1) ] )
-                          
+
     return peak_idx
 
 
@@ -154,7 +154,7 @@ def find_minima_along_axis(x, window_size=10):
     There seems to be something fishy about the plateau detection
     There is a good change
 
-    
+
     Test passed :D
     minim = utls.find_minima_along_axis(R, window_size=10)
     for idx in range(R.shape[0]):
@@ -163,19 +163,19 @@ def find_minima_along_axis(x, window_size=10):
 
         if m1.shape != m2.shape:
             print('diff_size:{:d}'.format(idx) )
-    
+
         elif np.any(m1-m2):
             print('diff_value:{:d}'.format(idx) )
     '''
 
     # This method of finding local minima is based on comparing each point with its neighbors
-    # to that end, the signal is shifted by values according to the size of the window, and 
+    # to that end, the signal is shifted by values according to the size of the window, and
     # the signal is compared to its shifted version
     # 'min_mask_p' and 'min_mask_n' represents the comparison for all shifting values (axis=1)
     # in different shifting direction.
     # this means, for instance, min_mask_p[i,:,:] represents the coparison of each point to its
     # (i+1)-step shifted version.
-    # Then these two arrays, representing different shift directions are concatenated and 
+    # Then these two arrays, representing different shift directions are concatenated and
     # that is followed by using np.all as a "logical and" operator (since np.logical_and won't work)
     # the final result (min_mask) is true for any point that is smaller than all neighbors
     min_mask_p = np.stack( [ np.concatenate( (np.ones((x.shape[0],ws)), x[:,ws:] <= x[:,:-ws]),axis=1)
@@ -184,11 +184,11 @@ def find_minima_along_axis(x, window_size=10):
                              for ws in range(1, window_size+1) ], axis=0 )
     min_mask = np.concatenate((min_mask_p, min_mask_n), axis=0)
     min_mask = np.all(min_mask, axis=0)
-    
+
     ## since the length of minima is different for each row, longer we can maintain numpy.array
     # finding the indices to minima
     minima_indices = [np.nonzero(a)[0] for a in min_mask]
-    
+
     # detect plateau by finding close minima and average their location
     split_points = [ np.r_[0, np.nonzero( np.diff(m_idx)> window_size )[0], len(m_idx)]
                      for m_idx in minima_indices ]
@@ -196,11 +196,11 @@ def find_minima_along_axis(x, window_size=10):
     for idx in range(len(split_points)):
         if split_points[idx][0] == split_points[idx][1]:
             split_points[idx] = split_points[idx][1:]
-    
+
     minima_indices = [ np.array([ int(m_idx[spl_pts[idx]:spl_pts[idx+1]].mean())
                                    for idx in range(len(spl_pts)-1) ])
                        for m_idx,spl_pts in zip(minima_indices, split_points) ]
-    
+
 
     return minima_indices
 

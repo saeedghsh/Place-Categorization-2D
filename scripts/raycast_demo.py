@@ -1,6 +1,6 @@
 '''
 Copyright (C) Saeed Gholami Shahbandi. All rights reserved.
-Author: Saeed Gholami Shahbandi (saeed.gh.sh@gmail.com)
+Author: Saeed Gholami Shahbandi
 
 This file is part of Arrangement Library.
 The of Arrangement Library is free software: you can redistribute it and/or
@@ -45,11 +45,11 @@ if __name__ == '__main__':
     usage:
     python raycast_demo.py --image_name 'filename.ext'
     '''
-  
+
     args = sys.argv
     # fetching parameters from input arguments
     # parameters are marked with double dash,
-    # the value of a parameter is the next argument   
+    # the value of a parameter is the next argument
     listiterator = args[1:].__iter__()
     while 1:
         try:
@@ -57,8 +57,8 @@ if __name__ == '__main__':
             if item[:2] == '--':
                 exec(item[2:] + ' = next( listiterator )')
         except:
-            break   
-    
+            break
+
 
     ### load image
     image = np.flipud( cv2.imread( image_name, cv2.IMREAD_GRAYSCALE) )
@@ -73,7 +73,7 @@ if __name__ == '__main__':
         'occupancy_thr': 220,
     }
     raycast_config['length_range'] = raycast_config['range_meter'] // raycast_config['mpp'] # in pixels
-    raycast_config['length_steps'] = raycast_config['length_range'] // raycast_config['range_res'] # 
+    raycast_config['length_steps'] = raycast_config['length_range'] // raycast_config['range_res'] #
 
 
     ### constructing the rays_array_xy
@@ -84,17 +84,17 @@ if __name__ == '__main__':
     # this template once and pass it to raycast_bitmap method.
     rays_array_xy = plcat.construct_raycast_array(np.array([0,0]),
                                                   raycast_config['length_range'],
-                                                  raycast_config['length_steps'], 
+                                                  raycast_config['length_steps'],
                                                   raycast_config['theta_range'],
                                                   raycast_config['theta_res'])
     raxy = rays_array_xy
     # raxy.shape = (2 x n x m) n: number of rays (theta), m: number of points in each ray (range)
     # raxy[0,:,:] x-values (column index to image)
     # raxy[1,:,:] y-values (row index to image)
-  
+
     ### find a random pose in the open space
     pose_ = get_random_pose (image, raycast_config['occupancy_thr'])
-    
+
     ### raycast
     r,t = plcat.raycast_bitmap(pose_, image,
                                raycast_config['occupancy_thr'],

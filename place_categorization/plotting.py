@@ -1,6 +1,6 @@
 '''
 Copyright (C) Saeed Gholami Shahbandi. All rights reserved.
-Author: Saeed Gholami Shahbandi (saeed.gh.sh@gmail.com)
+Author: Saeed Gholami Shahbandi
 
 This file is part of Arrangement Library.
 The of Arrangement Library is free software: you can redistribute it and/or
@@ -41,7 +41,7 @@ def plot_rays_arr_xy(image, pose, raycast_config, raxy):
     ''''''
     fig, axis = plt.subplots(1,1, figsize=(10,10))
     axis.imshow( image, cmap = 'gray', interpolation='nearest', origin='lower')
-    # axis.plot(pose[0], pose[1], 'r*')   
+    # axis.plot(pose[0], pose[1], 'r*')
     axis.plot(raxy[0,:,:], raxy[1,:,:], 'b.')
     plt.show()
 
